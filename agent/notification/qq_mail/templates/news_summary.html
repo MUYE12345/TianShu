@@ -1,0 +1,15 @@
+<!DOCTYPE html>
+<html><head><meta charset="utf-8"><style>
+body{font-family:sans-serif;max-width:600px;margin:auto;padding:20px}
+h1{color:#409EFF;font-size:20px}
+.article{margin:12px 0;padding:12px;background:#f9f9f9;border-radius:8px}
+.article a{color:#409EFF;text-decoration:none;font-size:15px}
+.footer{color:#999;font-size:12px;text-align:center;margin-top:30px}
+</style></head><body>
+<h1>{{title}}</h1>
+<p>{{summary}}</p>
+{% for item in articles %}
+<div class="article"><a href="{{item.url}}">{{item.title}}</a><br><small>{{item.source}}</small></div>
+{% endfor %}
+<div class="footer">智能管家 · 自动推送</div>
+</body></html>

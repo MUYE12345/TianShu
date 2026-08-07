@@ -1,0 +1,23 @@
+{
+  "nav.home": "首页",
+  "nav.settings": "设置",
+  "nav.news": "新闻",
+  "nav.paper": "论文",
+  "nav.note": "笔记",
+  "nav.logout": "退出",
+
+  "action.create": "新建",
+  "action.edit": "编辑",
+  "action.delete": "删除",
+  "action.save": "保存",
+  "action.cancel": "取消",
+  "action.confirm": "确认",
+
+  "status.loading": "加载中",
+  "status.noData": "暂无数据",
+  "status.error": "错误",
+  "status.success": "成功",
+
+  "app.name": "天枢",
+  "app.tagline": "智能体中枢平台"
+}

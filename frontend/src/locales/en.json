@@ -1,0 +1,23 @@
+{
+  "nav.home": "Home",
+  "nav.settings": "Settings",
+  "nav.news": "News",
+  "nav.paper": "Papers",
+  "nav.note": "Notes",
+  "nav.logout": "Logout",
+
+  "action.create": "Create",
+  "action.edit": "Edit",
+  "action.delete": "Delete",
+  "action.save": "Save",
+  "action.cancel": "Cancel",
+  "action.confirm": "Confirm",
+
+  "status.loading": "Loading",
+  "status.noData": "No Data",
+  "status.error": "Error",
+  "status.success": "Success",
+
+  "app.name": "Tianshu",
+  "app.tagline": "Agent Hub Platform"
+}

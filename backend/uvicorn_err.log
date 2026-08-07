@@ -1,0 +1,11 @@
+INFO:     Started server process [15144]
+INFO:     Waiting for application startup.
+INFO:     Application startup complete.
+INFO:     Uvicorn running on http://0.0.0.0:8000 (Press CTRL+C to quit)
+LangGraph 执行错误: Client error '400 Bad Request' for url 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+LangGraph 执行错误: Client error '400 Bad Request' for url 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+LangGraph 执行错误: Client error '400 Bad Request' for url 'https://dashscope.aliyuncs.com/compatible-mode/v1/chat/completions'
+For more information check: https://developer.mozilla.org/en-US/docs/Web/HTTP/Status/400
+[爬虫] deep_tech 结果为空 (连续1次)

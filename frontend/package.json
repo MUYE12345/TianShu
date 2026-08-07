@@ -1,0 +1,26 @@
+{
+  "name": "frontend",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-vue": "^6.0.7",
+    "typescript": "~6.0.2",
+    "vite": "^8.1.0"
+  },
+  "dependencies": {
+    "@element-plus/icons-vue": "^2.3.2",
+    "axios": "^1.18.1",
+    "echarts": "^6.1.0",
+    "element-plus": "^2.14.2",
+    "markdown-it": "^14.2.0",
+    "pinia": "^3.0.4",
+    "vue-echarts": "^8.0.1",
+    "vue-router": "^4.6.4"
+  }
+}
