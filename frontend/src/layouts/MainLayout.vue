@@ -122,20 +122,23 @@ const menuGroups = [
 </script>
 
 <style scoped>
-/* Kitro 骨架：渐变画布上 8px 留白，侧栏透明 + 主区悬浮卡 */
+/* 清新现代骨架：冷调渐变画布上 8px 留白，磨砂玻璃侧栏 + 悬浮主区 */
 .app-shell {
   height: 100vh; display: flex; gap: 0;
   background: transparent;
   padding: 8px 8px 8px 0;
 }
 
-/* 侧边栏：透明、无边框 */
+/* 侧边栏：磨砂玻璃白卡 */
 .app-sidebar {
-  width: 216px; background: transparent; border-right: none;
+  width: 216px; background: var(--sidebar-bg);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  border: 1px solid var(--border-light); border-radius: 18px;
   display: flex; flex-direction: column;
   transition: width .36s cubic-bezier(0.22, 1, 0.36, 1);
   flex-shrink: 0; overflow: hidden;
   padding: 8px 10px;
+  box-shadow: var(--shadow-soft);
 }
 .app-sidebar.collapsed { width: 64px; }
 
@@ -146,20 +149,20 @@ const menuGroups = [
 .logo-mark {
   width: 40px; height: 40px; border-radius: 12px;
   display: grid; place-items: center; font-size: 19px; color: #fff;
-  background: linear-gradient(135deg, #1a1a2e 0%, #3b3f8f 55%, #5a5fcf 100%);
-  box-shadow: 0 6px 16px -6px rgba(59, 63, 143, 0.5);
+  background: linear-gradient(135deg, #4f8ef7 0%, #7c5cff 100%);
+  box-shadow: 0 8px 18px -6px rgba(79, 142, 247, 0.55);
 }
 html.dark .logo-mark {
-  background: linear-gradient(135deg, #0a0a12 0%, #2a2e66 55%, #F5D28A 160%);
+  background: linear-gradient(135deg, #5f8dfc 0%, #8f6bff 100%);
 }
 .logo-text {
   font-size: 17px; font-weight: 700; letter-spacing: .05em;
-  background: linear-gradient(135deg, #1a1a2e 0%, #3b3f8f 60%, #5a5fcf 100%);
+  background: linear-gradient(135deg, #4f8ef7 0%, #7c5cff 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text; white-space: nowrap; font-family: var(--font-display);
 }
 html.dark .logo-text {
-  background: linear-gradient(135deg, #F5D28A 0%, #b9a0f0 100%);
+  background: linear-gradient(135deg, #7aa8ff 0%, #a78bfa 100%);
   -webkit-background-clip: text; -webkit-text-fill-color: transparent;
   background-clip: text;
 }
@@ -179,32 +182,36 @@ html.dark .logo-text {
 .nav-item {
   display: flex; align-items: center; gap: 10px;
   height: 40px; padding: 0 10px; border-radius: 12px; cursor: pointer;
-  transition: background .15s, color .15s;
+  transition: background .15s, color .15s, box-shadow .15s;
   color: var(--text-tertiary);
   margin-bottom: 2px; font-size: 13px; font-weight: 500;
 }
 .nav-item:hover { background: var(--sidebar-hover); color: var(--text-primary); }
-.nav-item.active { background: var(--sidebar-active-bg); color: var(--text-primary); font-weight: 600; }
+.nav-item.active {
+  background: var(--sidebar-active-bg);
+  color: var(--sidebar-active); font-weight: 600;
+}
 .app-sidebar.collapsed .nav-item.active {
-  background: var(--bg-card); color: var(--text-primary);
-  box-shadow: 0 6px 14px -6px rgba(15, 17, 21, 0.24), inset 0 0 0 1px rgba(15, 17, 21, 0.06);
+  background: var(--bg-card); color: var(--sidebar-active);
+  box-shadow: 0 6px 14px -6px rgba(79, 142, 247, 0.35), inset 0 0 0 1px rgba(79, 142, 247, 0.18);
 }
 .nav-icon { font-size: 15px; width: 20px; text-align: center; flex-shrink: 0; line-height: 1; }
 .nav-label { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 .sidebar-foot { padding: 4px 4px 0; }
 
-/* 主区：悬浮大圆角白卡 */
+/* 主区：磨砂大圆角卡 */
 .app-main {
   flex: 1; display: flex; flex-direction: column; min-width: 0;
   margin-left: 8px;
-  background: var(--bg-card);
+  background: rgba(255, 255, 255, 0.82);
+  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
   border-radius: 18px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-light);
   overflow: hidden;
 }
-html.dark .app-main { background: rgba(18, 18, 26, 0.86); backdrop-filter: blur(14px); }
+html.dark .app-main { background: rgba(18, 22, 42, 0.86); backdrop-filter: blur(18px); }
 
 .app-topbar {
   height: 52px; display: flex; align-items: center;

@@ -102,24 +102,24 @@ const handleRegister = async () => {
   min-height: 100vh;
   position: relative;
   overflow: hidden;
-  /* 天枢 · 夜空星河 */
+  /* 天枢 · 清新冷调光晕 */
   background:
-    radial-gradient(circle at 18% 22%, rgba(255,255,255,.14) 0, rgba(255,255,255,0) 60px),
-    radial-gradient(circle at 82% 30%, rgba(255,255,255,.10) 0, rgba(255,255,255,0) 50px),
-    radial-gradient(circle at 55% 78%, rgba(255,255,255,.08) 0, rgba(255,255,255,0) 70px),
-    linear-gradient(135deg, #1a1a3e 0%, #2f2a6e 45%, #4a3f8f 100%);
+    radial-gradient(circle at 16% 18%, rgba(99, 179, 255, 0.28) 0, transparent 46%),
+    radial-gradient(circle at 84% 26%, rgba(139, 124, 255, 0.24) 0, transparent 44%),
+    radial-gradient(circle at 50% 88%, rgba(77, 211, 234, 0.20) 0, transparent 50%),
+    linear-gradient(135deg, #eef4ff 0%, #e4edfe 50%, #ece7fc 100%);
 }
 html.dark .login-page {
   background:
-    radial-gradient(circle at 18% 22%, rgba(255,255,255,.10) 0, rgba(255,255,255,0) 60px),
-    radial-gradient(circle at 82% 30%, rgba(255,255,255,.08) 0, rgba(255,255,255,0) 50px),
-    linear-gradient(135deg, #07070f 0%, #141332 60%, #221a44 100%);
+    radial-gradient(circle at 16% 18%, rgba(90, 140, 255, 0.22) 0, transparent 46%),
+    radial-gradient(circle at 84% 26%, rgba(150, 110, 255, 0.18) 0, transparent 44%),
+    linear-gradient(135deg, #0a0e1c 0%, #101432 60%, #1a1540 100%);
 }
 .login-logo {
   width: 56px; height: 56px; margin: 0 auto;
   border-radius: 18px; display: grid; place-items: center;
   font-size: 26px; color: #fff;
-  background: linear-gradient(135deg, #2a2a55 0%, #5a5fcf 100%);
-  box-shadow: 0 10px 26px -8px rgba(90, 95, 207, 0.6);
+  background: linear-gradient(135deg, #4f8ef7 0%, #7c5cff 100%);
+  box-shadow: 0 12px 28px -8px rgba(79, 142, 247, 0.6);
 }
 </style>

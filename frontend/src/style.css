@@ -1,89 +1,93 @@
 /* ═══════════════════════════════════════════════
-   天枢 Tianshu — Kitro 风格设计令牌（参考 Kitro-main tokens.css）
-   悬浮卡片画布 + 大圆角 + 近黑主色 + pastel 标签
+   天枢 Tianshu — 清新现代科技风设计令牌
+   冷调渐变画布 + 蓝紫活力渐变主色 + 磨砂玻璃面板 + pastel 标签
    ═══════════════════════════════════════════════ */
 
-/* 亮色主题 — Kitro soft purple-grey 画布 */
+/* 亮色主题 — 清爽冷调 */
 :root,
 [data-theme='light'] {
-  /* 功能蓝（链接/运行态/spinner），主 CTA 用 --accent 近黑 */
-  --primary: #3b6ef5;
-  --primary-light: #e0e8f4;
-  --primary-dark: #2453d6;
-  --primary-gradient: linear-gradient(135deg, #3b6ef5, #2453d6);
+  /* 功能蓝 → 靛紫（链接/运行态/主按钮，活力渐变） */
+  --primary: #4f8ef7;
+  --primary-light: #e3edfe;
+  --primary-dark: #3a6fd8;
+  --primary-gradient: linear-gradient(135deg, #4f8ef7, #7c5cff);
 
-  /* 画布：body 渐变透出，壳透明 */
-  --bg-page-grad: linear-gradient(180deg, #e9e7ee 0%, #d8d6df 100%);
-  --bg: #f7f6fa;
+  /* 画布：清爽冷调 + 柔和色块光晕（清新有活力） */
+  --bg-page-grad:
+    radial-gradient(circle at 14% 16%, rgba(99, 179, 255, 0.20) 0, transparent 42%),
+    radial-gradient(circle at 86% 22%, rgba(139, 124, 255, 0.16) 0, transparent 40%),
+    radial-gradient(circle at 55% 92%, rgba(77, 211, 234, 0.14) 0, transparent 46%),
+    linear-gradient(180deg, #f1f6ff 0%, #e7effe 55%, #efeafd 100%);
+  --bg: #f4f7ff;
   --bg-card: #ffffff;
   --bg-elevated: #ffffff;
-  --bg-page: #e9e7ee;
-  --bg-subtle: #f7f6fa;
-  --bg-hover: #f3f1f6;
+  --bg-page: #e8f0fe;
+  --bg-subtle: #f3f6fd;
+  --bg-hover: #eef3fc;
   --bg-shell: transparent;
 
-  --text-primary: #1a1a1a;
-  --text-secondary: #4d4d54;
-  --text-tertiary: #6b6b73;
-  --text-muted: #8b8b8f;
+  --text-primary: #1c2333;
+  --text-secondary: #4a5368;
+  --text-tertiary: #66708a;
+  --text-muted: #8b93a8;
 
-  --border: #ececef;
-  --border-light: rgba(70, 70, 100, 0.06);
-  --border-input: #ececef;
-  --border-focus: #9aa0aa;
+  --border: #e8edf7;
+  --border-light: rgba(99, 116, 163, 0.12);
+  --border-input: #e3e9f4;
+  --border-focus: #4f8ef7;
 
-  /* 主色：近黑胶囊 CTA（Kitro 招牌） */
-  --accent: #0f1115;
-  --accent-hover: #2b2b2b;
-  --accent-soft: #f3f1f6;
-  --accent-ring: rgba(15, 17, 21, 0.12);
-  --accent-gradient: linear-gradient(135deg, #1a1a1a 0%, #0f1115 100%);
-  --accent-shadow: 0 6px 14px rgba(15, 17, 21, 0.22);
+  /* 主色：蓝→紫活力渐变 CTA */
+  --accent: #4f8ef7;
+  --accent-hover: #3d7ae0;
+  --accent-soft: rgba(79, 142, 247, 0.10);
+  --accent-ring: rgba(79, 142, 247, 0.16);
+  --accent-gradient: linear-gradient(135deg, #4f8ef7 0%, #7c5cff 100%);
+  --accent-shadow: 0 8px 20px -6px rgba(79, 142, 247, 0.45);
   --text-on-accent: #ffffff;
 
-  /* TZ Pastel 调色盘（chip/标签/装饰，三档：主色/soft/ink） */
-  --tz-pink: #ec8da0;   --tz-pink-soft: #fce3e8;   --tz-pink-ink: #b85469;
-  --tz-blue: #8aa6cf;   --tz-blue-soft: #e0e8f4;   --tz-blue-ink: #5a7bb3;
-  --tz-yellow: #eccb6a; --tz-yellow-soft: #faecc9; --tz-yellow-ink: #a17f29;
+  /* TZ Pastel 调色盘（chip/标签/装饰，清新马卡龙） */
+  --tz-pink: #f0a0b4;   --tz-pink-soft: #fde8ee;   --tz-pink-ink: #c2557a;
+  --tz-blue: #7fa8f0;   --tz-blue-soft: #e3edfe;   --tz-blue-ink: #4a72c9;
+  --tz-yellow: #f2cf7a; --tz-yellow-soft: #fdf0d3; --tz-yellow-ink: #ab8527;
   --tz-purple: #a78bcf; --tz-purple-soft: #ece4f5; --tz-purple-ink: #7c5cad;
-  --tz-green: #84c98c;  --tz-green-soft: #d8f0db;  --tz-green-ink: #3d8047;
+  --tz-green: #6fcf9a;  --tz-green-soft: #dcf5e7;  --tz-green-ink: #2f8f5d;
 
-  --danger: #ec5d72;  --danger-soft: #fce3e8;
-  --success: #3d8047; --success-soft: #d8f0db;
+  --danger: #f06a7a;  --danger-soft: #fde8ec;
+  --success: #2f9e6e; --success-soft: #dcf5e7;
 
-  /* 双层柔阴影 */
-  --shadow-sm: 0 2px 6px rgba(70, 70, 100, 0.06);
-  --shadow: 0 12px 32px -16px rgba(70, 70, 100, 0.18), 0 2px 6px rgba(70, 70, 100, 0.06);
-  --shadow-lg: 0 30px 60px -20px rgba(40, 40, 70, 0.25);
-  --shadow-card: 0 12px 32px -16px rgba(70, 70, 100, 0.18), 0 2px 6px rgba(70, 70, 100, 0.06);
-  --shadow-elevated: 0 30px 60px -20px rgba(40, 40, 70, 0.25);
-  --shadow-soft: 0 4px 14px rgba(80, 80, 110, 0.08);
+  /* 柔和蓝调阴影 */
+  --shadow-sm: 0 2px 6px rgba(99, 116, 163, 0.08);
+  --shadow: 0 12px 32px -16px rgba(79, 110, 190, 0.20), 0 2px 6px rgba(99, 116, 163, 0.08);
+  --shadow-lg: 0 30px 60px -20px rgba(79, 110, 190, 0.28);
+  --shadow-card: 0 12px 32px -16px rgba(79, 110, 190, 0.20), 0 2px 6px rgba(99, 116, 163, 0.08);
+  --shadow-elevated: 0 30px 60px -20px rgba(79, 110, 190, 0.28);
+  --shadow-soft: 0 4px 14px rgba(99, 116, 163, 0.10);
 
-  /* 大圆角刻度 */
-  --radius: 16px;
-  --radius-sm: 12px;
-  --radius-md: 16px;
-  --radius-lg: 22px;
-  --radius-xl: 28px;
+  /* 圆角刻度 */
+  --radius: 14px;
+  --radius-sm: 10px;
+  --radius-md: 14px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 
-  /* 侧栏：透明坐在渐变上 */
-  --sidebar-bg: transparent;
-  --sidebar-text: #6b6b73;
-  --sidebar-active: #0f1115;
-  --sidebar-active-bg: #f3f1f6;
-  --sidebar-hover: #f3f1f6;
+  /* 侧栏：磨砂玻璃白卡 */
+  --sidebar-bg: rgba(255, 255, 255, 0.72);
+  --sidebar-text: #66708a;
+  --sidebar-active: #4f8ef7;
+  --sidebar-active-bg: linear-gradient(135deg, rgba(79, 142, 247, 0.14), rgba(124, 92, 255, 0.14));
+  --sidebar-hover: rgba(79, 142, 247, 0.08);
 
   --font: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
   --font-display: 'Inter', 'PingFang SC', 'Microsoft YaHei', 'Hiragino Sans GB', sans-serif;
   --font-mono: 'SF Mono', ui-monospace, 'JetBrains Mono', Menlo, Consolas, monospace;
 
   /* Markdown 专用 */
-  --md-code-bg: #f7f6fa;
-  --md-code-color: #b85469;
+  --md-code-bg: #f3f6fd;
+  --md-code-color: #c2557a;
   --md-blockquote-border: #a78bcf;
-  --md-blockquote-bg: #f7f6fa;
-  --md-table-border: #ececef;
-  --md-table-header-bg: #f7f6fa;
+  --md-blockquote-bg: #f5f7fd;
+  --md-table-border: #e8edf7;
+  --md-table-header-bg: #f3f6fd;
 
   font-family: var(--font);
   font-size: 14px;
@@ -91,49 +95,52 @@
   color: var(--text-primary);
 }
 
-/* 暗色主题 — Kitro dark（金色 accent + 玻璃态） */
+/* 暗色主题 — 深海军蓝 + 蓝紫活力渐变 */
 html.dark,
 [data-theme='dark'] {
-  --primary: #7c9aff;
-  --primary-light: #1c2340;
-  --primary-dark: #9db4ff;
-  --primary-gradient: linear-gradient(135deg, #7c9aff, #a78bfa);
+  --primary: #7aa8ff;
+  --primary-light: #1b2542;
+  --primary-dark: #9cc0ff;
+  --primary-gradient: linear-gradient(135deg, #5f8dfc, #8f6bff);
 
-  --bg-page-grad: linear-gradient(180deg, #050507 0%, #0a0a10 100%);
-  --bg: #0a0a10;
-  --bg-card: #12121a;
-  --bg-elevated: #1a1a24;
-  --bg-page: #050507;
-  --bg-subtle: #17171f;
-  --bg-hover: #1e1e28;
+  --bg-page-grad:
+    radial-gradient(circle at 15% 20%, rgba(90, 140, 255, 0.16) 0, transparent 42%),
+    radial-gradient(circle at 85% 25%, rgba(150, 110, 255, 0.12) 0, transparent 42%),
+    linear-gradient(180deg, #0a0e1c 0%, #0d1026 100%);
+  --bg: #0a0e1c;
+  --bg-card: #12162a;
+  --bg-elevated: #1a1f38;
+  --bg-page: #0a0e1c;
+  --bg-subtle: #161b31;
+  --bg-hover: #1c223c;
   --bg-shell: transparent;
 
-  --text-primary: #ececf2;
-  --text-secondary: #a8a8b3;
-  --text-tertiary: #7c7c88;
-  --text-muted: #55555f;
+  --text-primary: #eef1fa;
+  --text-secondary: #b0b8d0;
+  --text-tertiary: #828ba8;
+  --text-muted: #5b647f;
 
-  --border: #23232e;
-  --border-light: rgba(255, 255, 255, 0.06);
-  --border-input: #2a2a36;
-  --border-focus: #5a5a68;
+  --border: #232a45;
+  --border-light: rgba(255, 255, 255, 0.07);
+  --border-input: #2a3150;
+  --border-focus: #6b8ffc;
 
-  --accent: #F5D28A;
-  --accent-hover: #f8dfab;
-  --accent-soft: rgba(245, 210, 138, 0.12);
-  --accent-ring: rgba(245, 210, 138, 0.2);
-  --accent-gradient: linear-gradient(135deg, #f8dfab 0%, #F5D28A 100%);
-  --accent-shadow: 0 6px 14px rgba(245, 210, 138, 0.18);
-  --text-on-accent: #14140a;
+  --accent: #7aa8ff;
+  --accent-hover: #93b9ff;
+  --accent-soft: rgba(122, 168, 255, 0.14);
+  --accent-ring: rgba(122, 168, 255, 0.22);
+  --accent-gradient: linear-gradient(135deg, #5f8dfc 0%, #8f6bff 100%);
+  --accent-shadow: 0 8px 22px -8px rgba(95, 141, 252, 0.5);
+  --text-on-accent: #ffffff;
 
-  --tz-pink: #ec8da0;   --tz-pink-soft: rgba(236, 141, 160, 0.15);  --tz-pink-ink: #f2b3c1;
-  --tz-blue: #8aa6cf;   --tz-blue-soft: rgba(138, 166, 207, 0.15);  --tz-blue-ink: #b3c6e2;
-  --tz-yellow: #eccb6a; --tz-yellow-soft: rgba(236, 203, 106, 0.15);--tz-yellow-ink: #f0d99a;
+  --tz-pink: #f0a0b4;   --tz-pink-soft: rgba(240, 160, 180, 0.15);  --tz-pink-ink: #f2b9c7;
+  --tz-blue: #7fa8f0;   --tz-blue-soft: rgba(127, 168, 240, 0.15);  --tz-blue-ink: #a9c4f5;
+  --tz-yellow: #f2cf7a; --tz-yellow-soft: rgba(242, 207, 122, 0.15);--tz-yellow-ink: #f0d99a;
   --tz-purple: #a78bcf; --tz-purple-soft: rgba(167, 139, 207, 0.15);--tz-purple-ink: #c9b5e4;
-  --tz-green: #84c98c;  --tz-green-soft: rgba(132, 201, 140, 0.15); --tz-green-ink: #aedcb4;
+  --tz-green: #6fcf9a;  --tz-green-soft: rgba(111, 207, 154, 0.15); --tz-green-ink: #a4e0bc;
 
-  --danger: #f0798b;  --danger-soft: rgba(236, 93, 114, 0.15);
-  --success: #7bc985; --success-soft: rgba(61, 128, 71, 0.2);
+  --danger: #f38b9c;  --danger-soft: rgba(243, 139, 156, 0.15);
+  --success: #6fd39a; --success-soft: rgba(111, 211, 154, 0.18);
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
   --shadow: 0 12px 32px -16px rgba(0, 0, 0, 0.55);
@@ -142,18 +149,18 @@ html.dark,
   --shadow-elevated: 0 30px 60px -20px rgba(0, 0, 0, 0.7);
   --shadow-soft: 0 4px 14px rgba(0, 0, 0, 0.4);
 
-  --sidebar-bg: transparent;
-  --sidebar-text: #7c7c88;
-  --sidebar-active: #F5D28A;
-  --sidebar-active-bg: rgba(245, 210, 138, 0.12);
-  --sidebar-hover: rgba(255, 255, 255, 0.05);
+  --sidebar-bg: rgba(18, 22, 42, 0.85);
+  --sidebar-text: #828ba8;
+  --sidebar-active: #9cc0ff;
+  --sidebar-active-bg: linear-gradient(135deg, rgba(95, 141, 252, 0.18), rgba(143, 107, 255, 0.18));
+  --sidebar-hover: rgba(255, 255, 255, 0.06);
 
-  --md-code-bg: #17171f;
-  --md-code-color: #f2b3c1;
+  --md-code-bg: #161b31;
+  --md-code-color: #f2b9c7;
   --md-blockquote-border: #a78bcf;
-  --md-blockquote-bg: #14141c;
-  --md-table-border: #23232e;
-  --md-table-header-bg: #17171f;
+  --md-blockquote-bg: #12162a;
+  --md-table-border: #232a45;
+  --md-table-header-bg: #161b31;
 }
 
 /* ── 基础重置 ── */
@@ -175,14 +182,14 @@ body {
 a { color: var(--primary); text-decoration: none; transition: color .15s; }
 a:hover { color: var(--primary-dark); }
 
-/* ── 滚动条（Kitro：6px 细条，滚动时淡入） ── */
+/* ── 滚动条（6px 细条） ── */
 ::-webkit-scrollbar { width: 6px; height: 6px; }
 ::-webkit-scrollbar-track { background: transparent; }
-::-webkit-scrollbar-thumb { background: #c9c8d0; border-radius: 10px; }
-::-webkit-scrollbar-thumb:hover { background: #8b8b8f; }
+::-webkit-scrollbar-thumb { background: #c4d2ea; border-radius: 10px; }
+::-webkit-scrollbar-thumb:hover { background: #94a8cc; }
 
-html.dark ::-webkit-scrollbar-thumb { background: #33333e; }
-html.dark ::-webkit-scrollbar-thumb:hover { background: #55555f; }
+html.dark ::-webkit-scrollbar-thumb { background: #2b3354; }
+html.dark ::-webkit-scrollbar-thumb:hover { background: #3d4770; }
 
 /* ── 通用面板/卡片（Kitro 悬浮卡） ── */
 .panel, .glass {
@@ -273,7 +280,7 @@ html.dark ::-webkit-scrollbar-thumb:hover { background: #55555f; }
 
 /* ── 文件类型图标渐变（Kitro） ── */
 .ft-html { background: linear-gradient(135deg, #e0664a, #c8472d); }
-.ft-doc  { background: linear-gradient(135deg, #3b6ef5, #2453d6); }
+.ft-doc  { background: linear-gradient(135deg, #4f8ef7, #7c5cff); }
 .ft-xls  { background: linear-gradient(135deg, #1f9d6b, #157a51); }
 .ft-md   { background: linear-gradient(135deg, #6a5ae0, #4d3fc4); }
 .ft-pdf  { background: linear-gradient(135deg, #ec8da0, #d4677f); }
