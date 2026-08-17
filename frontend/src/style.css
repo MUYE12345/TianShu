@@ -52,7 +52,7 @@
   --tz-purple: #a78bcf; --tz-purple-soft: #ece4f5; --tz-purple-ink: #7c5cad;
   --tz-green: #6fcf9a;  --tz-green-soft: #dcf5e7;  --tz-green-ink: #2f8f5d;
 
-  --danger: #f06a7a;  --danger-soft: #fde8ec;
+  --danger: #e11d48;  --danger-soft: #fde3ea;
   --success: #2f9e6e; --success-soft: #dcf5e7;
 
   /* 柔和蓝调阴影 */
@@ -139,7 +139,7 @@ html.dark,
   --tz-purple: #a78bcf; --tz-purple-soft: rgba(167, 139, 207, 0.15);--tz-purple-ink: #c9b5e4;
   --tz-green: #6fcf9a;  --tz-green-soft: rgba(111, 207, 154, 0.15); --tz-green-ink: #a4e0bc;
 
-  --danger: #f38b9c;  --danger-soft: rgba(243, 139, 156, 0.15);
+  --danger: #e5484d;  --danger-soft: rgba(229, 72, 77, 0.16);
   --success: #6fd39a; --success-soft: rgba(111, 211, 154, 0.18);
 
   --shadow-sm: 0 2px 6px rgba(0, 0, 0, 0.35);
@@ -369,7 +369,24 @@ html.dark .el-button--primary { color: var(--text-on-accent); }
 .el-button--primary:hover { opacity: .92; transform: translateY(-1px); }
 .el-button--default { background: var(--bg-card); border-color: var(--border-input); color: var(--text-secondary); }
 .el-button--default:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--text-primary); }
-.el-button--danger { background: var(--danger); border: none; }
+.el-button--danger {
+  /* 危险按钮: 固定深红底 + 白字, 悬停/激活不再变浅(保证文字可读) */
+  --el-button-danger-bg-color: var(--danger);
+  --el-button-danger-border-color: var(--danger);
+  --el-button-danger-hover-bg-color: var(--danger);
+  --el-button-danger-hover-border-color: var(--danger);
+  --el-button-danger-active-bg-color: var(--danger);
+  --el-button-danger-active-border-color: var(--danger);
+  --el-button-danger-text-color: #ffffff;
+  --el-button-danger-hover-text-color: #ffffff;
+  --el-button-danger-active-text-color: #ffffff;
+  background: var(--danger);
+  border: none;
+  color: #ffffff;
+}
+.el-button--danger:hover { filter: brightness(1.08); }
+.el-button--danger:active { filter: brightness(0.94); }
+html.dark .el-button--danger { color: #ffffff; }
 .el-menu { border-right: none !important; background: transparent !important; }
 .el-tabs__item { font-size: 13px; }
 .el-tabs__item.is-active { font-weight: 600; }
