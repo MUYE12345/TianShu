@@ -362,17 +362,23 @@ const startParse = async () => {
 <style scoped>
 .paper-page { padding: 4px 4px 24px; display: flex; flex-direction: column; gap: 16px; }
 
-/* 顶栏 */
-.pp-top { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+/* 顶栏：token 化信息卡（对齐知识库页头设计语言） */
+.pp-top {
+  display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); box-shadow: var(--shadow-soft);
+  padding: 14px 18px;
+}
 .pp-back {
   border: none; background: var(--accent-soft); color: var(--text-primary);
   padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
+  transition: background .15s, transform .15s;
 }
-.pp-back:hover { filter: brightness(.97); }
+.pp-back:hover { background: var(--accent); color: var(--text-on-accent); transform: translateY(-1px); }
 .pp-info { flex: 1; min-width: 0; }
-.pp-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-family: var(--font-display); }
+.pp-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-family: var(--font-display); }
 .pp-authors { font-size: 12px; color: var(--text-tertiary); margin: 4px 0 0; }
-.pp-actions { display: flex; gap: 8px; }
+.pp-actions { display: flex; align-items: center; gap: 8px; }
 
 /* AI 解读 */
 .pp-analysis { padding: 16px 20px; }
@@ -409,17 +415,19 @@ const startParse = async () => {
 /* PDF 页面图 + 段落框（魔搭式） */
 .pp-page { margin-bottom: 18px; }
 .pp-page-num { font-size: 11px; font-weight: 600; color: var(--text-tertiary); margin: 2px 0 6px; font-family: var(--font-mono); }
-.pp-page-img { position: relative; width: 100%; margin: 0 auto; border: 1px solid var(--border-light); border-radius: 10px; overflow: hidden; background: #fff; }
+.pp-page-img { position: relative; width: 100%; margin: 0 auto; border: 1px solid var(--border-light); border-radius: 10px; overflow: hidden; background: var(--bg-card); }
 .pp-page-img img { display: block; width: 100%; height: auto; }
 .pp-box {
-  position: absolute; border: 1px solid rgba(59, 110, 245, .45); background: rgba(59, 110, 245, .06);
+  position: absolute;
+  border: 1px solid color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 6%, transparent);
   border-radius: 3px; cursor: pointer; transition: background .15s, border-color .15s;
 }
-.pp-box:hover { background: rgba(59, 110, 245, .14); }
-.pp-box.active { background: rgba(59, 110, 245, .2); border-color: var(--primary); border-width: 1.5px; }
+.pp-box:hover { background: color-mix(in srgb, var(--accent) 14%, transparent); }
+.pp-box.active { background: color-mix(in srgb, var(--accent) 20%, transparent); border-color: var(--accent); border-width: 1.5px; }
 .pp-box-idx {
   position: absolute; top: -7px; left: -7px; width: 16px; height: 16px; border-radius: 50%;
-  background: var(--primary); color: #fff; font-size: 10px; font-weight: 700;
+  background: var(--accent); color: var(--text-on-accent); font-size: 10px; font-weight: 700;
   display: grid; place-items: center; font-family: var(--font-mono);
 }
 .pp-page-text { border: 1px solid var(--border-light); border-radius: 10px; padding: 4px 8px; }
@@ -456,7 +464,7 @@ const startParse = async () => {
 .pf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .pf-card { border: 1px solid var(--border-light); border-radius: 14px; padding: 12px; background: var(--bg-card); }
 .pf-caption { font-size: 12px; font-weight: 600; margin: 0 0 8px; }
-.pf-img-wrap { border-radius: 10px; overflow: hidden; margin-bottom: 8px; background: #fff; }
+.pf-img-wrap { border-radius: 10px; overflow: hidden; margin-bottom: 8px; background: var(--bg-card); }
 .pf-img { width: 100%; display: block; }
 .pf-text { font-size: 12px; color: var(--text-secondary); line-height: 1.6; margin: 0; white-space: pre-wrap; }
 </style>

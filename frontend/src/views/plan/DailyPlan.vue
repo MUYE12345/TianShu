@@ -1,63 +1,80 @@
 <template>
   <div class="scheduler-page">
-    <!-- 顶部 -->
-    <div class="scheduler-header">
+    <!-- ===== 页头（与知识库页同款设计语言） ===== -->
+    <header class="kb-top">
       <div>
-        <h1 class="page-title">定时任务</h1>
-        <p class="page-desc">创建定时任务，到时间自动执行</p>
+        <h1 class="kb-title">定时任务</h1>
+        <p class="kb-desc">创建定时任务，到时间自动执行——AI 自动生成 Cron 表达式，到点自动运行你的提示词</p>
       </div>
-      <el-button type="primary" size="large" round @click="showCreate = true">
-        <el-icon><Plus /></el-icon> 新建任务
-      </el-button>
-    </div>
+      <button class="btn-primary" @click="showCreate = true">＋ 新建任务</button>
+    </header>
 
-    <!-- 任务列表 -->
-    <div class="task-board" v-loading="loading">
-      <!-- 状态分组 -->
-      <div class="status-tabs">
-        <el-radio-group v-model="statusFilter" size="small">
-          <el-radio-button value="all">全部 ({{ tasks.length }})</el-radio-button>
-          <el-radio-button value="pending">待执行 ({{ pendingCount }})</el-radio-button>
-          <el-radio-button value="running">运行中 ({{ runningCount }})</el-radio-button>
-          <el-radio-button value="done">已完成 ({{ doneCount }})</el-radio-button>
-          <el-radio-button value="failed">失败 ({{ failedCount }})</el-radio-button>
-        </el-radio-group>
+    <!-- ===== 任务总览 banner ===== -->
+    <section class="all-tasks">
+      <div class="all-tasks-text">
+        <div class="all-tasks-title">任务总览</div>
+        <div class="all-tasks-desc">支持一次、每天、工作日、每周、每月五种频次，到点自动执行，无需值守。</div>
+        <div class="all-tasks-meta">共 {{ tasks.length }} 个任务 · {{ pendingCount }} 待执行 · {{ runningCount }} 运行中 · {{ doneCount }} 已完成 · {{ failedCount }} 失败</div>
+      </div>
+      <div class="all-tasks-icons">
+        <span class="ft-clock">⏰</span>
+        <span class="ft-alarm">🕐</span>
+        <span class="ft-repeat">🔁</span>
+        <span class="ft-cal">📅</span>
+      </div>
+    </section>
+
+    <!-- ===== 任务列表 ===== -->
+    <section class="task-section" v-loading="loading">
+      <div class="topic-bar">
+        <span class="topic-label">全部任务</span>
+        <div class="status-tabs">
+          <el-radio-group v-model="statusFilter" size="small">
+            <el-radio-button value="all">全部 ({{ tasks.length }})</el-radio-button>
+            <el-radio-button value="pending">待执行 ({{ pendingCount }})</el-radio-button>
+            <el-radio-button value="running">运行中 ({{ runningCount }})</el-radio-button>
+            <el-radio-button value="done">已完成 ({{ doneCount }})</el-radio-button>
+            <el-radio-button value="failed">失败 ({{ failedCount }})</el-radio-button>
+          </el-radio-group>
+        </div>
       </div>
 
-      <!-- 空状态 -->
-      <el-empty v-if="!loading && filteredTasks.length === 0" :image-size="80" class="empty-box">
-        <template #description>暂无定时任务，点击右上角新建</template>
-      </el-empty>
+      <!-- 空状态：emoji + 文案 + CTA -->
+      <div v-if="!loading && filteredTasks.length === 0" class="task-empty">
+        <div class="task-empty-emoji">⏰</div>
+        <div class="task-empty-text">还没有定时任务，创建一个让 AI 按时开工吧</div>
+        <button class="btn-primary" @click="showCreate = true">＋ 新建任务</button>
+      </div>
 
-      <!-- 任务卡片 -->
-      <div v-for="task in filteredTasks" :key="task.id" class="task-card">
-        <div class="task-left">
+      <!-- 任务卡片网格 -->
+      <div v-else class="task-grid">
+        <div v-for="task in filteredTasks" :key="task.id" class="task-card" :class="'st-' + (task.status || 'pending')">
+          <div class="task-card-top">
+            <span class="cron-chip" :title="task.cron">{{ task.cron || '暂无 cron' }}</span>
+            <el-tag :type="statusTag(task.status)" size="small" effect="plain" round>
+              {{ statusLabel(task.status) }}
+            </el-tag>
+          </div>
           <div class="task-time">
             <span class="time-value">{{ formatTime(task) }}</span>
             <span class="time-label">{{ task.label || '' }}</span>
           </div>
-        </div>
-        <div class="task-divider" :class="task.status" />
-        <div class="task-body">
-          <div class="task-title">{{ task.prompt }}</div>
+          <div class="task-prompt" :title="task.prompt">{{ task.prompt }}</div>
           <div class="task-meta">
-            <el-tag :type="statusTag(task.status)" size="small" effect="plain" round>
-              {{ statusLabel(task.status) }}
-            </el-tag>
-            <span class="meta-time">创建于 {{ formatDate(task.createdAt) }}</span>
-            <span v-if="task.lastFiredAt" class="meta-time">上次运行 {{ relativeTime(task.lastFiredAt) }}</span>
+            <span class="meta-item">📅 创建于 {{ formatDate(task.createdAt) }}</span>
+            <span v-if="task.lastFiredAt" class="meta-item">▶ 上次运行 {{ relativeTime(task.lastFiredAt) }}</span>
+          </div>
+          <div class="task-actions">
+            <button class="btn-ghost run-btn" @click="runTask(task)">▶ 运行</button>
+            <el-popconfirm title="确认删除？" @confirm="deleteTask(task.id)">
+              <template #reference>
+                <el-button text size="small" type="danger" class="del-btn">✕ 删除</el-button>
+              </template>
+            </el-popconfirm>
           </div>
         </div>
-        <div class="task-actions">
-          <el-button text size="small" type="primary" @click="runTask(task)">▶ 运行</el-button>
-          <el-popconfirm title="确认删除？" @confirm="deleteTask(task.id)">
-            <template #reference>
-              <el-button text size="small" type="danger">✕</el-button>
-            </template>
-          </el-popconfirm>
-        </div>
       </div>
-    </div>
+    </section>
 
     <!-- 新建任务弹窗 -->
     <el-dialog v-model="showCreate" title="新建定时任务" width="520px" :close-on-click-modal="false">
@@ -275,49 +292,119 @@ fetchTasks()
 </script>
 
 <style scoped>
-.scheduler-page { padding: 20px; height: 100%; display: flex; flex-direction: column; }
-.scheduler-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px; }
-.page-title { margin: 0; font-size: 20px; font-weight: 700; }
-.page-desc { margin: 4px 0 0; font-size: 13px; color: var(--text-tertiary); }
+.scheduler-page { padding: 4px 4px 24px; }
 
-.task-board { flex: 1; overflow-y: auto; }
-.status-tabs { margin-bottom: 16px; }
+/* ===== 页头（与知识库页同款） ===== */
+.kb-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
+.kb-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-family: var(--font-display); }
+.kb-desc { font-size: 12px; color: var(--text-tertiary); margin: 6px 0 0; max-width: 560px; }
 
-.empty-box { margin-top: 60px; }
+/* ===== 任务总览 banner ===== */
+.all-tasks {
+  position: relative; overflow: hidden;
+  border-radius: var(--radius-xl); padding: 20px 26px;
+  background: linear-gradient(115deg, var(--tz-purple-soft), var(--tz-blue-soft));
+  border: 1px solid var(--border-light);
+  display: flex; align-items: center; justify-content: space-between;
+  margin-bottom: 26px;
+}
+.all-tasks-title { font-size: 16px; font-weight: 700; color: var(--text-primary); }
+.all-tasks-desc { font-size: 12px; color: var(--text-secondary); margin-top: 6px; max-width: 520px; }
+.all-tasks-meta { font-size: 11px; color: var(--text-tertiary); margin-top: 10px; }
+.all-tasks-icons { position: relative; width: 340px; height: 84px; flex-shrink: 0; }
+.ft-clock, .ft-alarm, .ft-repeat, .ft-cal {
+  position: absolute; width: 40px; height: 40px; border-radius: 10px;
+  display: grid; place-items: center; font-size: 17px;
+  box-shadow: var(--shadow-soft);
+}
+.ft-clock  { background: var(--tz-purple-soft); color: var(--tz-purple-ink); top: 8px;  left: 10px;  transform: rotate(-6deg); }
+.ft-alarm  { background: var(--tz-yellow-soft); color: var(--tz-yellow-ink); top: 36px; left: 84px;  transform: rotate(5deg); }
+.ft-repeat { background: var(--tz-green-soft);  color: var(--tz-green-ink);  top: 6px;  left: 170px; transform: rotate(4deg); }
+.ft-cal    { background: var(--tz-blue-soft);   color: var(--tz-blue-ink);   top: 38px; left: 246px; transform: rotate(-5deg); }
 
-/* 任务卡片 */
+/* ===== 任务列表 ===== */
+.topic-bar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; }
+.topic-label { font-size: 14px; font-weight: 700; margin-right: auto; }
+
+/* 状态筛选：胶囊式分段控件 */
+.status-tabs :deep(.el-radio-button__inner) {
+  --el-radio-button-checked-bg-color: var(--accent);
+  --el-radio-button-checked-border-color: var(--accent);
+  --el-radio-button-checked-text-color: var(--text-on-accent);
+  --el-radio-button-checked-hover-bg-color: var(--accent-hover);
+  --el-radio-button-checked-hover-border-color: var(--accent-hover);
+  --el-radio-button-checked-hover-text-color: var(--text-on-accent);
+  background: var(--bg-card);
+  border: 1px solid var(--border-input);
+  color: var(--text-secondary);
+}
+.status-tabs :deep(.el-radio-button__inner:hover) { color: var(--text-primary); border-color: var(--accent); }
+.status-tabs :deep(.el-radio-button:not(:first-child) .el-radio-button__inner) { border-left: none; }
+.status-tabs :deep(.el-radio-button:first-child .el-radio-button__inner) { border-radius: 999px 0 0 999px; }
+.status-tabs :deep(.el-radio-button:last-child .el-radio-button__inner) { border-radius: 0 999px 999px 0; }
+.status-tabs :deep(.el-radio-button.is-active .el-radio-button__inner) { box-shadow: none; }
+
+/* ===== 任务卡片网格 ===== */
+.task-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 16px; }
 .task-card {
-  display: flex; align-items: stretch; gap: 0;
-  background: var(--bg-card); border: 1px solid var(--border);
-  border-radius: 12px; margin-bottom: 10px; overflow: hidden;
-  transition: all 0.15s;
+  position: relative; overflow: hidden;
+  display: flex; flex-direction: column; gap: 10px;
+  background: var(--bg-card); border: 1px solid var(--border-light);
+  border-radius: var(--radius-lg); padding: 16px 16px 12px;
+  box-shadow: var(--shadow-soft);
+  transition: all .2s;
 }
-.task-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+.task-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
 
-.task-left {
-  display: flex; flex-direction: column; align-items: center;
-  justify-content: center; min-width: 100px; padding: 16px;
+/* 顶部状态色条 */
+.task-card::before {
+  content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px;
 }
-.time-value { font-size: 22px; font-weight: 700; color: var(--text-primary); }
-.time-label { font-size: 11px; color: var(--text-tertiary); margin-top: 2px; }
+.task-card.st-pending::before { background: var(--text-muted); }
+.task-card.st-running::before { background: var(--tz-yellow-ink); }
+.task-card.st-done::before, .task-card.st-completed::before { background: var(--success); }
+.task-card.st-failed::before { background: var(--danger); }
 
-.task-divider { width: 3px; flex-shrink: 0; }
-.task-divider.pending { background: #d1d5db; }
-.task-divider.running { background: #f59e0b; }
-.task-divider.done, .task-divider.completed { background: #22c55e; }
-.task-divider.failed { background: #ef4444; }
+.task-card-top { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cron-chip {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', monospace;
+  font-size: 11px; letter-spacing: 0.02em;
+  color: var(--text-secondary);
+  background: var(--bg-subtle);
+  border: 1px solid var(--border-light);
+  border-radius: 999px;
+  padding: 3px 10px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  max-width: 70%;
+}
+.task-time { display: flex; align-items: baseline; gap: 8px; }
+.time-value { font-size: 26px; font-weight: 700; color: var(--text-primary); font-family: var(--font-display); letter-spacing: -0.02em; }
+.time-label { font-size: 11px; color: var(--text-tertiary); }
 
-.task-body { flex: 1; padding: 14px 16px; min-width: 0; }
-.task-title { font-size: 14px; line-height: 1.5; margin-bottom: 8px; }
-.task-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
-.meta-time { font-size: 11px; color: var(--text-tertiary); }
+.task-prompt {
+  font-size: 13px; line-height: 1.6; color: var(--text-secondary);
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical;
+  overflow: hidden; min-height: 41px;
+}
 
-.task-actions { display: flex; flex-direction: column; justify-content: center; gap: 4px; padding: 8px 12px; border-left: 1px solid var(--border); }
+.task-meta { display: flex; gap: 12px; flex-wrap: wrap; font-size: 11px; color: var(--text-tertiary); }
+.meta-item { display: inline-flex; align-items: center; gap: 3px; }
 
-/* 频次选择 */
+.task-actions {
+  display: flex; align-items: center; justify-content: space-between;
+  border-top: 1px solid var(--border-light);
+  padding-top: 10px; margin-top: 2px;
+}
+.run-btn { font-size: 12px; padding: 6px 14px; }
+.del-btn { padding: 0 6px; }
+
+/* ===== 空状态：emoji + 文案 + CTA ===== */
+.task-empty { text-align: center; padding: 56px 0 48px; color: var(--text-tertiary); }
+.task-empty-emoji { font-size: 44px; margin-bottom: 12px; }
+.task-empty-text { font-size: 13px; color: var(--text-secondary); margin-bottom: 18px; }
+
+/* ===== 新建弹窗内的频次选择（保持不变） ===== */
 .freq-tabs { width: 100%; }
-
-/* 星期选择 - 小圆片 */
 .weekday-pills { display: flex; gap: 4px; }
 .day-pill {
   width: 32px; height: 32px; border-radius: 50%;
@@ -326,5 +413,5 @@ fetchTasks()
   transition: all 0.15s; user-select: none;
 }
 .day-pill:hover { border-color: var(--primary); }
-.day-pill.active { background: var(--primary); color: #fff; border-color: var(--primary); }
+.day-pill.active { background: var(--primary); color: var(--text-on-accent); border-color: var(--primary); }
 </style>

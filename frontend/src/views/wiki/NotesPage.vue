@@ -1,13 +1,14 @@
 <template>
   <div class="notes-page">
+    <!-- ===== 页头（与知识库页同级的现代清新风格） ===== -->
     <header class="notes-top">
       <div>
         <h1 class="notes-title">Wiki 笔记</h1>
-        <p class="notes-desc">笔记、概念、来源与项目页面</p>
+        <p class="notes-desc">笔记、概念、来源与项目页面——随手记录，双向链接成网</p>
       </div>
       <div class="notes-actions">
-        <el-input v-model="searchQ" placeholder="搜索笔记…" clearable size="small" style="width: 200px" />
-        <button class="btn-outline" @click="fileInput?.click()">📥 上传文章解析</button>
+        <el-input v-model="searchQ" placeholder="搜索笔记…" clearable size="small" style="width: 180px" />
+        <button class="btn-outline" :disabled="analyzing" @click="fileInput?.click()">{{ analyzing ? '解析中…' : '📥 上传文章解析' }}</button>
         <button class="btn-primary" @click="showCreate = true">＋ 新建笔记</button>
         <input ref="fileInput" type="file" style="display:none"
                accept=".pdf,.doc,.docx,.md,.txt,.markdown,.xlsx,.xls,.pptx,.html" @change="analyzeUpload" />
@@ -30,21 +31,28 @@
     <div v-else v-loading="loading" class="notes-grid">
       <div v-for="p in filteredPages" :key="p.slug" class="note-card" @click="router.push('/wiki/' + p.slug)">
         <div class="note-cover" :style="{ background: coverColor(p.type) }">
+          <span class="note-type-tag">{{ typeLabel(p.type) }}</span>
           <span class="note-emoji">{{ typeEmoji(p.type) }}</span>
+          <span class="note-open" @click.stop="router.push('/wiki/' + p.slug)">打开 →</span>
         </div>
         <div class="note-body">
-          <div class="note-type">{{ typeLabel(p.type) }}</div>
           <div class="note-title">{{ p.title }}</div>
           <div class="note-desc">{{ (p.body || '').slice(0, 60) }}</div>
           <div class="note-footer">
             <span class="note-tags">
               <el-tag v-for="t in (p.tags || []).slice(0, 2)" :key="t" size="small" round>{{ t }}</el-tag>
+              <span v-if="(p.tags || []).length > 2" class="note-tags-more">+{{ (p.tags || []).length - 2 }}</span>
             </span>
             <span class="note-time">{{ (p.created || '').slice(0, 10) }}</span>
           </div>
         </div>
       </div>
-      <el-empty v-if="!loading && filteredPages.length === 0" :image-size="60" description="暂无笔记" />
+      <!-- 空状态：emoji + 文字 + CTA（同知识库页风格） -->
+      <div v-if="!loading && filteredPages.length === 0" class="notes-empty">
+        <div class="notes-empty-emoji">📝</div>
+        <div class="notes-empty-text">{{ searchQ ? '没有找到匹配的笔记' : '还没有 Wiki 笔记' }}</div>
+        <button class="btn-primary" @click="showCreate = true">＋ 新建笔记</button>
+      </div>
     </div>
 
     <el-dialog v-model="showCreate" title="新建笔记" width="480px">
@@ -158,29 +166,50 @@ onMounted(loadPages)
 
 <style scoped>
 .notes-page { padding: 4px 4px 24px; }
+
+/* ── 页头（对齐 .kb-top 设计语言） ── */
 .notes-top { display: flex; align-items: flex-start; justify-content: space-between; margin-bottom: 18px; }
 .notes-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-family: var(--font-display); }
-.notes-desc { font-size: 12px; color: var(--text-tertiary); margin: 6px 0 0; }
+.notes-desc { font-size: 12px; color: var(--text-tertiary); margin: 6px 0 0; max-width: 560px; }
 .notes-actions { display: flex; gap: 8px; align-items: center; }
+.notes-actions .btn-outline:disabled { opacity: .5; cursor: not-allowed; }
 
+/* ── 分段式 Tab（保留原交互） ── */
 .notes-tabs { display: flex; gap: 4px; margin-bottom: 16px; background: var(--bg-subtle); padding: 3px; border-radius: 999px; width: fit-content; }
 .notes-tab { padding: 5px 14px; border-radius: 999px; cursor: pointer; font-size: 12px; transition: all .15s; color: var(--text-secondary); }
 .notes-tab:hover { color: var(--text-primary); }
 .notes-tab.active { background: var(--bg-card); color: var(--text-primary); font-weight: 600; box-shadow: var(--shadow-soft); }
 
+/* ── 页面卡片（同 .kb-card：hover 上浮 + 阴影加深） ── */
 .notes-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 14px; }
 .note-card {
-  border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden;
+  position: relative; border: 1px solid var(--border-light); border-radius: var(--radius-lg); overflow: hidden;
   cursor: pointer; transition: all .2s; background: var(--bg-card); box-shadow: var(--shadow-soft);
 }
 .note-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
-.note-cover { height: 80px; display: flex; align-items: center; justify-content: center; }
-.note-emoji { font-size: 28px; }
-.note-body { padding: 12px 14px; }
-.note-type { font-size: 10px; font-weight: 600; color: var(--text-tertiary); text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.note-cover { position: relative; height: 84px; display: flex; align-items: center; justify-content: center; }
+.note-emoji { font-size: 30px; }
+.note-type-tag {
+  position: absolute; top: 8px; left: 8px; padding: 2px 10px; border-radius: 999px;
+  background: var(--bg-card); font-size: 10px; font-weight: 600; color: var(--text-secondary);
+  box-shadow: var(--shadow-soft);
+}
+.note-open {
+  position: absolute; top: 8px; right: 8px; padding: 3px 10px; border-radius: 999px;
+  background: var(--bg-card); font-size: 11px; font-weight: 600; color: var(--accent);
+  box-shadow: var(--shadow-soft); opacity: 0; transition: opacity .15s;
+}
+.note-card:hover .note-open { opacity: 1; }
+.note-body { padding: 12px 14px 14px; }
 .note-title { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.note-footer { display: flex; align-items: center; justify-content: space-between; margin-top: 8px; }
-.note-tags { display: flex; gap: 4px; }
-.note-time { font-size: 11px; color: var(--text-muted); }
+.note-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 5px; line-height: 1.6; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.note-footer { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-light); }
+.note-tags { display: flex; gap: 4px; align-items: center; min-width: 0; overflow: hidden; }
+.note-tags-more { font-size: 10px; color: var(--text-muted); flex-shrink: 0; }
+.note-time { font-size: 11px; color: var(--text-muted); flex-shrink: 0; }
+
+/* ── 空状态：emoji + 文字 + CTA（同 .kb-empty） ── */
+.notes-empty { grid-column: 1 / -1; text-align: center; padding: 48px 0; color: var(--text-tertiary); }
+.notes-empty-emoji { font-size: 40px; margin-bottom: 10px; }
+.notes-empty-text { font-size: 13px; margin-bottom: 16px; }
 </style>

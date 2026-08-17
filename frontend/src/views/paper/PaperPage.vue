@@ -1,9 +1,13 @@
 <template>
-  <el-card>
-    <template #header>
-      <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap">
-        <span><el-icon><Document /></el-icon> 论文解析</span>
-        <el-input v-model="searchQuery" placeholder="搜索论文标题或作者" style="max-width:280px" clearable
+  <div class="kb-page">
+    <!-- ===== 页头（与知识库同款设计语言） ===== -->
+    <header class="kb-top">
+      <div>
+        <h1 class="kb-title">论文解析</h1>
+        <p class="kb-desc">上传 PDF 或从 arXiv 检索论文，自动识别正文与段落，支持逐段翻译与 AI 章节解读</p>
+      </div>
+      <div class="top-actions">
+        <el-input ref="searchRef" v-model="searchQuery" placeholder="搜索论文标题或作者" clearable class="top-search"
           @keyup.enter="searchArxiv" />
         <el-button type="primary" @click="searchArxiv" :loading="searching">
           <el-icon><Search /></el-icon> arXiv搜索
@@ -14,45 +18,69 @@
           </el-button>
         </el-upload>
       </div>
-    </template>
+    </header>
 
-    <div v-if="arxivResults.length > 0">
-      <h4>arXiv搜索结果</h4>
-      <div v-for="p in arxivResults" :key="p.title" class="paper-card" @click="openUrl(p.pdf_url)">
-        <h3 class="arxiv-title">{{ p.title }}</h3>
-        <p class="arxiv-authors">{{ (p.authors||[]).join(', ').slice(0,100) }}</p>
-        <p class="arxiv-summary">{{ (p.summary||'').slice(0,200) }}...</p>
-        <el-text type="info" size="small">{{ p.published }}</el-text>
+    <!-- ===== arXiv 搜索结果 ===== -->
+    <section v-if="arxivResults.length > 0" class="arx-section">
+      <div class="section-bar">
+        <span class="section-title">arXiv 搜索结果</span>
+        <span class="section-sub">共 {{ arxivResults.length }} 条 · 点击卡片在新窗口打开原文</span>
       </div>
-    </div>
+      <div class="arx-grid">
+        <div v-for="p in arxivResults" :key="p.title" class="arx-card" @click="openUrl(p.pdf_url)">
+          <div class="arx-title">{{ p.title }}</div>
+          <div class="arx-authors">{{ (p.authors||[]).join(', ').slice(0,100) }}</div>
+          <div class="arx-summary">{{ (p.summary||'').slice(0,200) }}...</div>
+          <div class="arx-meta">
+            <span class="chip chip-blue">arXiv</span>
+            <span>{{ p.published }}</span>
+          </div>
+        </div>
+      </div>
+    </section>
 
-    <h4 style="margin-top:20px">已解析论文</h4>
-    <el-table :data="papers" v-loading="loading" stripe style="width:100%">
-      <el-table-column label="标题" min-width="220">
-        <template #default="{row}">
-          <span class="paper-title-link" @click="$router.push('/paper/'+row.id)">{{ row.title }}</span>
-        </template>
-      </el-table-column>
-      <el-table-column prop="source" label="来源" width="80" />
-      <el-table-column prop="pages" label="页数" width="60" />
-      <el-table-column prop="status" label="状态" width="120">
-        <template #default="{row}">
-          <el-tag v-if="row.status==='parsed'" type="success" size="small">✅ 已解析</el-tag>
-          <el-tag v-else-if="row.status==='ocr_processing'" type="warning" size="small">⏳ 解析中</el-tag>
-          <el-tag v-else-if="row.status==='error'" type="danger" size="small">❌ 解析失败</el-tag>
-          <el-tag v-else type="info" size="small">📄 待解析</el-tag>
-        </template>
-      </el-table-column>
-      <el-table-column label="操作" width="180">
-        <template #default="{row}">
-          <el-button v-if="row.status==='pending' || row.status==='error'" size="small" type="primary" @click="startOcr(row)">🔍 解析</el-button>
-          <el-button v-if="row.status==='parsed' || row.status==='ocr_done'" size="small" @click="$router.push('/paper/'+row.id)">查看</el-button>
-          <el-button size="small" type="danger" @click="deletePaper(row.id)">删除</el-button>
-        </template>
-      </el-table-column>
-    </el-table>
-    <el-empty v-if="!loading && papers.length===0 && arxivResults.length===0" description="搜索arXiv或上传PDF" />
-  </el-card>
+    <!-- ===== 已解析论文 ===== -->
+    <section class="paper-section">
+      <div class="section-bar">
+        <span class="section-title">已解析论文</span>
+        <span class="section-sub">共 {{ papers.length }} 篇</span>
+      </div>
+
+      <div v-loading="loading" class="paper-grid">
+        <div v-for="p in papers" :key="p.id" class="paper-card" @click="$router.push('/paper/'+p.id)">
+          <div class="pc-top">
+            <span class="pc-icon ft-pdf">PDF</span>
+            <div class="pc-main">
+              <div class="pc-title">{{ p.title }}</div>
+              <div class="pc-meta">
+                <span class="chip" :class="p.source === 'arxiv' ? 'chip-blue' : 'chip-green'">{{ p.source === 'arxiv' ? 'arXiv' : '本地上传' }}</span>
+                <span>📄 {{ p.pages || 0 }} 页</span>
+                <span class="pc-date">{{ (p.created_at || '').slice(0, 10) }}</span>
+              </div>
+            </div>
+          </div>
+          <div class="pc-footer" @click.stop>
+            <span v-if="p.status==='parsed'" class="chip chip-green">✅ 已解析</span>
+            <span v-else-if="p.status==='ocr_processing'" class="chip chip-blue">⏳ 解析中</span>
+            <span v-else-if="p.status==='error'" class="chip chip-pink">❌ 解析失败</span>
+            <span v-else class="chip chip-purple">📄 待解析</span>
+            <div class="pc-actions">
+              <el-button v-if="p.status==='pending' || p.status==='error'" size="small" type="primary" @click="startOcr(p)">🔍 解析</el-button>
+              <el-button v-if="p.status==='parsed' || p.status==='ocr_done'" size="small" @click="$router.push('/paper/'+p.id)">查看</el-button>
+              <el-button size="small" type="danger" @click="deletePaper(p.id)">删除</el-button>
+            </div>
+          </div>
+        </div>
+
+        <!-- 空状态 -->
+        <div v-if="!loading && papers.length===0 && arxivResults.length===0" class="kb-empty">
+          <div class="kb-empty-emoji">📄</div>
+          <div class="kb-empty-text">还没有解析论文，搜索 arXiv 或上传 PDF 开始吧</div>
+          <button class="btn-primary" @click="$refs.searchRef && $refs.searchRef.focus()">＋ 去搜索 / 上传</button>
+        </div>
+      </div>
+    </section>
+  </div>
 </template>
 
 <script setup>
@@ -107,32 +135,76 @@ const openUrl = (url) => window.open(url, '_blank')
 </script>
 
 <style scoped>
+.kb-page { padding: 4px 4px 24px; }
+
+/* ── 页头（对齐知识库 .kb-top） ── */
+.kb-top { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 18px; }
+.kb-title { font-size: 26px; font-weight: 700; letter-spacing: -0.02em; margin: 0; font-family: var(--font-display); }
+.kb-desc { font-size: 12px; color: var(--text-tertiary); margin: 6px 0 0; max-width: 560px; }
+.top-actions { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.top-search { width: 230px; }
+
+/* ── 分区标题 ── */
+.section-bar { display: flex; align-items: baseline; gap: 10px; margin-bottom: 14px; }
+.section-title { font-size: 15px; font-weight: 700; }
+.section-sub { font-size: 11px; color: var(--text-muted); }
+
+/* ── arXiv 搜索结果卡片 ── */
+.arx-section { margin-bottom: 26px; }
+.arx-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+.arx-card {
+  border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+  background: var(--bg-card); box-shadow: var(--shadow-soft);
+  padding: 14px 16px; cursor: pointer; transition: all .2s;
+}
+.arx-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+.arx-title {
+  font-size: 13.5px; font-weight: 700; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
+}
+.arx-authors {
+  font-size: 11.5px; color: var(--text-tertiary); margin-top: 6px;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.arx-summary {
+  font-size: 12px; color: var(--text-secondary); margin-top: 6px; line-height: 1.6;
+  display: -webkit-box; -webkit-line-clamp: 3; -webkit-box-orient: vertical; overflow: hidden;
+}
+.arx-meta { display: flex; align-items: center; gap: 8px; margin-top: 10px; font-size: 11px; color: var(--text-muted); }
+
+/* ── 已解析论文卡片网格（对齐知识库 .kb-grid） ── */
+.paper-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
 .paper-card {
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  padding: 12px;
-  margin: 8px 0;
-  cursor: pointer;
-  transition: border-color 0.15s, background 0.15s;
+  display: flex; flex-direction: column; gap: 12px;
+  border: 1px solid var(--border-light); border-radius: var(--radius-lg);
+  background: var(--bg-card); box-shadow: var(--shadow-soft);
+  padding: 16px; cursor: pointer; transition: all .2s;
 }
-.paper-card:hover {
-  border-color: var(--primary);
-  background: var(--bg-subtle);
+.paper-card:hover { box-shadow: var(--shadow); transform: translateY(-2px); }
+
+.pc-top { display: flex; gap: 12px; align-items: flex-start; }
+.pc-icon {
+  flex-shrink: 0; width: 42px; height: 42px; border-radius: 12px;
+  display: grid; place-items: center; color: var(--text-on-accent);
+  font-size: 10px; font-weight: 800; letter-spacing: 0.02em;
+  box-shadow: var(--shadow-soft);
 }
-.paper-title-link { cursor: pointer; color: var(--text-primary); font-weight: 500; }
-.paper-title-link:hover { color: var(--primary); text-decoration: underline; }
-.arxiv-title {
-  margin: 0;
-  color: var(--primary);
-  font-size: 15px;
+.pc-main { flex: 1; min-width: 0; }
+.pc-title {
+  font-size: 14px; font-weight: 700; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden;
 }
-.arxiv-authors {
-  margin: 4px 0;
-  color: var(--text-secondary);
-  font-size: 13px;
+.pc-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--text-secondary); margin-top: 8px; }
+.pc-date { color: var(--text-muted); }
+
+.pc-footer {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding-top: 10px; margin-top: auto; border-top: 1px solid var(--border-light);
 }
-.arxiv-summary {
-  font-size: 13px;
-  color: var(--text-primary);
-}
+.pc-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* ── 空状态（对齐知识库 .kb-empty） ── */
+.kb-empty { grid-column: 1 / -1; text-align: center; padding: 48px 0; color: var(--text-tertiary); }
+.kb-empty-emoji { font-size: 40px; margin-bottom: 10px; }
+.kb-empty-text { font-size: 13px; margin-bottom: 16px; }
 </style>

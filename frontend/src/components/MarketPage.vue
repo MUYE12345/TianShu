@@ -19,7 +19,7 @@
             <el-button v-if="item.installed" size="small" type="danger" plain round @click="uninstall(item)">卸载</el-button>
             <el-button v-else size="small" type="primary" round @click="install(item)">安装</el-button>
           </template>
-          <el-button v-if="item.deletable" size="small" round @click="openEdit(item)">重传</el-button>
+          <el-button size="small" round @click="openEdit(item)">修改</el-button>
           <el-button v-if="item.deletable" size="small" text type="danger" @click="remove(item)">删除</el-button>
         </div>
       </div>

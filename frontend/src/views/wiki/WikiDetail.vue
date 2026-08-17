@@ -164,7 +164,7 @@
           <div class="art-card" @click="openGenerate('html')"><span class="art-icon ft-md">🌐</span><div class="art-name">网页</div><div class="art-desc">自动生成美观报告</div></div>
           <div class="art-card" @click="openGenerate('mindmap')"><span class="art-icon ft-xls">🧠</span><div class="art-name">思维导图</div><div class="art-desc">萃取结构化全景图</div></div>
           <div class="art-card" @click="openGenerate('ppt')"><span class="art-icon ft-ppt">📽</span><div class="art-name">PPT</div><div class="art-desc">可演示的幻灯片</div></div>
-          <div class="art-card" @click="openGenerate('brief')"><span class="art-icon ft-xls" style="background:linear-gradient(135deg,#eccb6a,#d9a83b)">📋</span><div class="art-name">简报</div><div class="art-desc">摘要要点快读</div></div>
+          <div class="art-card" @click="openGenerate('brief')"><span class="art-icon art-icon-brief">📋</span><div class="art-name">简报</div><div class="art-desc">摘要要点快读</div></div>
         </div>
         <div v-if="canEdit" class="art-chips">
           <span class="chip" @click="openGenerate('timeline')">＋ 时间轴</span>
@@ -239,7 +239,14 @@
   <div v-else-if="wikiPage" class="note-detail">
     <header class="nd-head">
       <button class="wd-back" @click="router.push('/notes')">‹ Wiki 笔记</button>
-      <span class="nd-title">{{ wikiPage.title }}</span>
+      <div class="nd-head-main">
+        <h1 class="nd-title">{{ wikiPage.title }}</h1>
+        <div class="nd-meta">
+          <span class="nd-type-chip">{{ ({ note: '笔记', concept: '概念', source: '来源', project: '项目', news: '新闻', task: '任务', idea: '想法' })[wikiPage.type] || wikiPage.type }}</span>
+          <span v-for="t in (wikiPage.tags || [])" :key="t" class="nd-tag">#{{ t }}</span>
+          <span class="nd-date">{{ (wikiPage.created || '').slice(0, 10) }}</span>
+        </div>
+      </div>
       <span class="col-spacer"></span>
       <button class="btn-outline" @click="toggleEdit">{{ editMode ? '取消编辑' : '编辑' }}</button>
       <button class="btn-danger" style="padding: 6px 14px" @click="deleteWiki">删除</button>
@@ -648,7 +655,7 @@ onMounted(async () => {
   padding: 6px 14px; border-radius: 999px; font-size: 12px; font-weight: 600; cursor: pointer;
 }
 .wd-back:hover { filter: brightness(.97); }
-.wd-title { font-size: 16px; font-weight: 700; letter-spacing: -0.01em; }
+.wd-title { font-size: 17px; font-weight: 700; letter-spacing: -0.01em; font-family: var(--font-display); }
 .wd-counts { font-size: 12px; color: var(--text-tertiary); }
 .wd-top-actions { margin-left: auto; display: flex; gap: 8px; align-items: center; }
 .wd-clear { border: none; background: var(--danger-soft); color: var(--danger); padding: 6px 12px; border-radius: 999px; font-size: 11px; font-weight: 600; cursor: pointer; }
@@ -705,12 +712,12 @@ onMounted(async () => {
 .src-item.selected { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent-soft); }
 .src-check {
   width: 16px; height: 16px; border-radius: 5px; border: 1.5px solid var(--border-focus);
-  display: grid; place-items: center; font-size: 10px; color: #fff; flex-shrink: 0; background: var(--bg-card);
+  display: grid; place-items: center; font-size: 10px; color: var(--text-on-accent); flex-shrink: 0; background: var(--bg-card);
 }
 .src-check.on { background: var(--accent); border-color: var(--accent); color: var(--text-on-accent); }
 html.dark .src-check.on { color: var(--text-on-accent); }
 .src-icon {
-  width: 30px; height: 30px; border-radius: 8px; color: #fff; flex-shrink: 0;
+  width: 30px; height: 30px; border-radius: 8px; color: var(--text-on-accent); flex-shrink: 0;
   display: grid; place-items: center; font-size: 9px; font-weight: 700; letter-spacing: .02em;
 }
 .src-info { flex: 1; min-width: 0; }
@@ -817,7 +824,7 @@ html.dark .src-check.on { color: var(--text-on-accent); }
 .composer-send:not(:disabled):hover { transform: scale(1.08); }
 .composer-stop {
   width: 30px; height: 30px; border-radius: 50%; border: none; cursor: pointer;
-  background: var(--danger); color: #fff; font-size: 11px;
+  background: var(--danger); color: var(--text-on-accent); font-size: 11px;
 }
 
 /* 列4 产物 */
@@ -830,6 +837,10 @@ html.dark .src-check.on { color: var(--text-on-accent); }
 .art-icon {
   width: 34px; height: 34px; border-radius: 10px; display: grid; place-items: center;
   font-size: 15px; margin-bottom: 8px;
+}
+.art-icon-brief {
+  background: linear-gradient(135deg, var(--tz-yellow) 0%, var(--tz-yellow-ink) 100%);
+  color: #fff;
 }
 .art-name { font-size: 12px; font-weight: 700; }
 .art-desc { font-size: 10px; color: var(--text-muted); margin-top: 3px; }
@@ -861,8 +872,13 @@ html.dark .src-check.on { color: var(--text-on-accent); }
 
 /* 笔记详情 */
 .note-detail { display: flex; flex-direction: column; height: 100%; min-height: 0; }
-.nd-head { display: flex; align-items: center; gap: 10px; flex-shrink: 0; margin-bottom: 12px; }
-.nd-title { font-size: 16px; font-weight: 700; }
-.nd-body { flex: 1; overflow-y: auto; background: var(--bg-card); border-radius: 18px; border: 1px solid var(--border-light); padding: 20px 24px; }
+.nd-head { display: flex; align-items: flex-start; gap: 12px; flex-shrink: 0; margin-bottom: 14px; padding: 2px 4px; }
+.nd-head-main { min-width: 0; }
+.nd-title { font-size: 22px; font-weight: 700; letter-spacing: -0.02em; margin: 0; line-height: 1.3; font-family: var(--font-display); overflow-wrap: anywhere; }
+.nd-meta { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 6px; }
+.nd-type-chip { font-size: 11px; font-weight: 600; color: var(--tz-blue-ink); background: var(--tz-blue-soft); padding: 2px 10px; border-radius: 999px; }
+.nd-tag { font-size: 11px; color: var(--text-tertiary); }
+.nd-date { font-size: 11px; color: var(--text-muted); }
+.nd-body { flex: 1; overflow-y: auto; background: var(--bg-card); border-radius: 18px; border: 1px solid var(--border-light); box-shadow: var(--shadow-soft); padding: 20px 24px; }
 .wiki-content { font-size: 13.5px; }
 </style>
