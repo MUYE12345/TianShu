@@ -73,6 +73,8 @@ async def send_message(
         raise HTTPException(status_code=400, detail="消息不能为空")
 
     async def event_stream():
+        # 持有生成器引用, 断开/异常时显式关闭, 让后台 Agent 循环真正终止(硬取消)
+        agen = None
         try:
             messages = chat_service.get_messages(db, session_id)
 
@@ -91,12 +93,13 @@ async def send_message(
             except Exception:
                 agent_system_prompt = ""
 
-            async for event in agent_service.run(
+            agen = agent_service.run(
                 content, str(session_id), messages,
                 expert_mode=expert_mode,
                 thinking_mode=thinking_mode,
                 agent_system_prompt=agent_system_prompt,
-            ):
+            )
+            async for event in agen:
                 # 检测客户端是否断开连接
                 if await request.is_disconnected():
                     log.info("客户端断开连接，终止生成 (session=%s)", session_id)
@@ -113,6 +116,13 @@ async def send_message(
             # 把错误透传给前端，避免"静默无回复"
             yield (f"event: error\n"
                    f"data: {json.dumps({'type': 'error', 'message': f'回答失败: {type(e).__name__}: {e}'}, ensure_ascii=False)}\n\n")
+        finally:
+            # 硬终止: 关闭生成器 → run_agent 的 GeneratorExit 逐层展开, 后台循环停止
+            if agen is not None:
+                try:
+                    await agen.aclose()
+                except Exception:  # noqa: BLE001
+                    pass
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})

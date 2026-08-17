@@ -46,7 +46,7 @@ const props = defineProps({
   artifact: { type: Object, required: true },
 })
 
-// 时间轴节点：拉取产物 JSON 文件解析
+// 时间轴节点：拉取产物 JSON 文件解析(产物经 /static 提供, 无需 token)
 const timelineNodes = ref([])
 onMounted(async () => {
   if (props.artifact.kind !== 'timeline') return

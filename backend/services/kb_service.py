@@ -56,8 +56,10 @@ def _source_dir(kid: str) -> Path:
 
 
 def _artifacts_dir(kid: str) -> Path:
-    d = _kb_path(kid) / "artifacts"
-    d.mkdir(exist_ok=True)
+    """产物落盘到 data/uploads/knowledge/{kid}/artifacts(静态目录只挂 uploads,
+    使 /static/knowledge/... URL 可达, 同时不暴露 data/knowledge 下的来源原件)。"""
+    d = APP_DATA_DIR / "uploads" / "knowledge" / kid / "artifacts"
+    d.mkdir(parents=True, exist_ok=True)
     return d
 
 
@@ -438,6 +440,7 @@ class KbService:
         items = []
         for a in arts:
             d = a.to_dict()
+            # 产物经 /static 服务(文件在 data/uploads/knowledge/..., 静态目录只挂 uploads)
             d["url"] = f"/static/knowledge/{kid}/artifacts/{d['filename']}"
             if d["kind"] in ("mindmap", "ppt", "brief"):
                 d["markdown"] = self._artifact_markdown(kid, a)

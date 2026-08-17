@@ -187,6 +187,11 @@ async def upload_mcp(current_user = Depends(get_current_user), body: dict = None
         url = body.get("url", "").strip()
         if not url:
             raise HTTPException(400, f"{mcp_type} 模式需要 url")
+        # SSRF 防护: 仅 http/https、拒绝内网/回环/云元数据地址
+        from agent.crawlers.safety import validate_url
+        err = validate_url(url)
+        if err:
+            raise HTTPException(400, detail=f"MCP URL 被安全策略拒绝: {err}")
         entry["url"] = url
 
     # 保存到 mcp_service

@@ -60,12 +60,16 @@ TOOL_RISK = {
     "list_skill_templates": SAFE,
 }
 
-# 允许的命令白名单(与 agent/tools/shell_tools/shell_tool.py 保持一致)
-ALLOWED_COMMANDS = {
+# 允许的命令白名单 — 单一来源: agent/tools/shell_tools/shell_tool.py(此处仅作导入失败的兜底)
+_ALLOWED_COMMANDS_FALLBACK = {
     'dir', 'ls', 'cd', 'pwd', 'echo', 'type', 'cat',
     'find', 'where', 'python', 'node', 'npm', 'git', 'pip',
     'copy', 'move', 'mkdir',
 }
+try:
+    from agent.tools.shell_tools.shell_tool import ALLOWED_COMMANDS
+except Exception:  # noqa: BLE001
+    ALLOWED_COMMANDS = set(_ALLOWED_COMMANDS_FALLBACK)
 
 # ── 敏感文件路径(内容级限制: 读写删一律禁止) ──
 SENSITIVE_PATH_PATTERNS = [

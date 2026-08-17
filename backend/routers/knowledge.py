@@ -448,9 +448,10 @@ async def generate_artifact(kid: str, body: dict, db: Session = Depends(get_db),
 
 
 def _kb_path_artifacts(kid: str):
+    """产物目录(与 kb_service._artifacts_dir 一致: data/uploads/knowledge/{kid}/artifacts)"""
     from pathlib import Path
-    from backend.services.kb_service import KB_ROOT
-    p = KB_ROOT / kid / "artifacts"
+    from backend.config import DATA_DIR
+    p = DATA_DIR / "uploads" / "knowledge" / kid / "artifacts"
     p.mkdir(parents=True, exist_ok=True)
     return p
 

@@ -96,6 +96,11 @@ def create_skill(name: str, description: str, template_type: str = "tool_skill",
     Returns:
         创建结果信息
     """
+    import re as _re
+    # 名校验: 仅字母/数字/_- (防目录穿越与非法路径)
+    if not name or not _re.fullmatch(r"[A-Za-z0-9_\-]+", name or ""):
+        return (f"错误: SKILL 名称 '{name}' 不合法, 仅允许字母/数字/下划线/中划线")
+
     template = SkillTemplate.TEMPLATES.get(template_type)
     if not template:
         return f"错误: 不支持的模板类型 '{template_type}'\n{SkillTemplate.list_templates()}"

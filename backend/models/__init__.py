@@ -15,6 +15,7 @@ from backend.models.task import ScheduledTask
 from backend.models.agent_group import AgentGroup
 from backend.models.agent import Agent
 from backend.models.agent_team import AgentTeam
+from backend.models.model_provider import ModelProvider
 from backend.models.kb import (KbNotebook, KbSource, KbMember, KbChat,
                                KbMessage, KbArtifact, KbChunk)
 
@@ -24,7 +25,7 @@ __all__ = [
     "Paper", "PaperPage", "PaperFigure",
     "WikiPage", "WikiVersion", "DailyPlan", "Memory",
     "PushLog", "Reminder", "Setting", "ScheduledTask", "AgentGroup",
-    "Agent", "AgentTeam",
+    "Agent", "AgentTeam", "ModelProvider",
     "KbNotebook", "KbSource", "KbMember", "KbChat",
     "KbMessage", "KbArtifact", "KbChunk",
 ]

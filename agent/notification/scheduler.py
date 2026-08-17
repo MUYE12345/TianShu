@@ -120,6 +120,44 @@ class PushScheduler:
             log.info("推送定时器已停止")
         self._executor.shutdown(wait=False)
 
+    # ── 渠道过滤 + 推送日志 ──
+
+    def _active_notifiers(self):
+        """按 NEWS_PUSH_CHANNELS 配置过滤推送渠道(默认 feishu,qqmail)"""
+        channels = [c.strip().lower()
+                    for c in (settings.NEWS_PUSH_CHANNELS or "feishu,qqmail").split(",")
+                    if c.strip()]
+        return [(name, n) for name, n in self.notifiers.items() if name in channels]
+
+    def _send_with_log(self, name, notifier, content, push_type: str) -> bool:
+        """推送并写入 PushLog(渠道/类型/状态/摘要/错误)"""
+        ok, err = False, ""
+        try:
+            notifier.send(content)
+            ok = True
+            log.info("推送成功 [%s] (%s)", name, push_type)
+        except Exception as e:  # noqa: BLE001
+            err = str(e)
+            log.warning("推送失败 [%s] (%s): %s", name, push_type, e)
+        try:
+            from backend.database import SessionLocal
+            from backend.models.notification import PushLog
+            db = SessionLocal()
+            try:
+                db.add(PushLog(
+                    channel=name,
+                    push_type=push_type,
+                    status="success" if ok else "failed",
+                    content_summary=(getattr(content, "title", "") or "")[:200],
+                    error_message=err[:200],
+                ))
+                db.commit()
+            finally:
+                db.close()
+        except Exception:  # noqa: BLE001
+            pass
+        return ok
+
     # ── 天气推送 ──
 
     def push_weather(self):
@@ -156,12 +194,8 @@ class PushScheduler:
                 weather=weather,
             )
 
-            for name, notifier in self.notifiers.items():
-                try:
-                    notifier.send(content)
-                    log.info("天气推送成功 [%s]", name)
-                except Exception as e:
-                    log.warning("天气推送失败 [%s]: %s", name, e)
+            for name, notifier in self._active_notifiers():
+                self._send_with_log(name, notifier, content, "weather")
 
         except Exception as e:
             log.warning("天气推送异常: %s", e)
@@ -211,12 +245,8 @@ class PushScheduler:
                     articles=articles[:10],
                 )
 
-                for name, notifier in self.notifiers.items():
-                    try:
-                        notifier.send(content)
-                        log.info("新闻推送成功 [%s]: %d 源", name, len(groups))
-                    except Exception as e:
-                        log.warning("新闻推送失败 [%s]: %s", name, e)
+                for name, notifier in self._active_notifiers():
+                    self._send_with_log(name, notifier, content, "daily_news")
 
                 # 科技时事
                 tech = ns.get_current_news(db, section="technology")
@@ -225,11 +255,8 @@ class PushScheduler:
                         title="📡 科技时事速递",
                         articles=[{"title": n.title, "url": n.url} for n in tech[:5]],
                     )
-                    for name, notifier in self.notifiers.items():
-                        try:
-                            notifier.send(tech_content)
-                        except Exception:
-                            pass
+                    for name, notifier in self._active_notifiers():
+                        self._send_with_log(name, notifier, tech_content, "current_news")
 
             finally:
                 db.close()

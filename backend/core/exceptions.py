@@ -52,7 +52,10 @@ def register_exception_handlers(app: FastAPI):
 
     @app.exception_handler(Exception)
     async def general_exception_handler(request, exc: Exception):
+        # 不对外回显异常详情(str(exc)), 避免泄露内部路径/密钥等; 详情写入日志
+        import logging
+        logging.getLogger(__name__).exception("未捕获异常: %s", exc)
         return JSONResponse(
             status_code=500,
-            content={"code": 500, "message": "服务器内部错误", "detail": str(exc)},
+            content={"code": 500, "message": "服务器内部错误", "detail": ""},
         )

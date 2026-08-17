@@ -48,6 +48,12 @@ async def lifespan(app: FastAPI):
     except Exception as e:
         log.warning("市场状态恢复失败(忽略): %s", e)
     push_scheduler.start()  # 启动每日新闻推送定时器
+    # 用户定时任务自动执行(scheduled_tasks 表 cron 到点跑 Agent)
+    try:
+        from backend.services.task_scheduler import task_scheduler
+        task_scheduler.start()
+    except Exception as e:  # noqa: BLE001
+        log.warning("用户定时任务调度器启动失败(不影响主服务): %s", e)
     # 飞书长连接模式(免公网): 配置 FEISHU_LONG_CONNECTION=true + APP_ID/SECRET 后,
     # 本地连飞书网关, 用户在飞书里发消息即可触发 agent
     if settings.FEISHU_LONG_CONNECTION:
@@ -81,6 +87,11 @@ async def lifespan(app: FastAPI):
 
     yield
     push_scheduler.stop()
+    try:
+        from backend.services.task_scheduler import task_scheduler
+        task_scheduler.stop()
+    except Exception:  # noqa: BLE001
+        pass
     log.info("应用关闭")
 
 
@@ -132,7 +143,6 @@ def create_app() -> FastAPI:
         plan, mcp, skills, tools, logs,
         agent, cron, tool_marketplace,
         feishu, models as models_router,
-        harness as harness_router,
     )
 
     app.include_router(auth.router, prefix="/api/auth", tags=["认证"])

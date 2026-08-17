@@ -122,16 +122,29 @@ class KnowledgeGraph:
             return True
         return self.rebuild(kid)
 
-    def rebuild(self, kid) -> bool:
-        """从父块提取实体/关系, 跨文档合并节点, 计算嵌入, 写图文件。"""
-        p = INDEX_DIR / f"{kid}_chunks.json"
-        if not p.exists():
-            return False
+    def _load_parents_from_db(self, kid: str) -> list:
+        """从 SQLite kb_chunks 读取父块(替代旧版 {kid}_chunks.json, 分块已迁库)。"""
         try:
-            chunks = json.loads(p.read_text(encoding="utf-8"))
-        except Exception:  # noqa: BLE001
-            return False
-        parents = [c for c in chunks if c.get("level") == "parent" and c.get("text")]
+            from backend.database import SessionLocal
+            from backend.models.kb import KbChunk
+            db = SessionLocal()
+            try:
+                rows = (db.query(KbChunk)
+                        .filter(KbChunk.kb_id == kid, KbChunk.level == "parent")
+                        .order_by(KbChunk.pos)
+                        .all())
+                return [{"source_id": r.source_id, "section": r.section or "",
+                         "text": r.text or ""}
+                        for r in rows if r.text and r.text.strip()]
+            finally:
+                db.close()
+        except Exception as e:  # noqa: BLE001
+            print(f"[KGRAG] 读取父块失败: {e}")
+            return []
+
+    def rebuild(self, kid) -> bool:
+        """从 SQLite 父块提取实体/关系, 跨文档合并节点, 计算嵌入, 写图文件。"""
+        parents = self._load_parents_from_db(kid)
         if not parents:
             return False
 

@@ -72,13 +72,18 @@ def git_handler(action: str, params: dict = None, workdir: str = None) -> str:
             return f"错误: {str(e)}"
 
     # 填充参数
+    import re
+    # 防 shell 注入: commit 消息等自由文本去除引号/反引号/$()/分号/换行
+    def _safe(text: str, limit: int = 200) -> str:
+        return re.sub(r'["\\$`;\r\n]', ' ', str(text or ""))[:limit]
+
     cmd = cmd_template.format(
-        repo=params.get("repo", ""),
-        dir=params.get("dir", ""),
-        paths=" ".join(params.get("paths", ["."])),
-        message=params.get("message", "update"),
-        count=params.get("count", "10"),
-        branch=params.get("branch", "main"),
+        repo=_safe(params.get("repo", "")),
+        dir=_safe(params.get("dir", "")),
+        paths=" ".join(_safe(p) for p in params.get("paths", ["."])),
+        message=_safe(params.get("message", "update")),
+        count=_safe(params.get("count", "10"), 8),
+        branch=_safe(params.get("branch", "main")),
     )
 
     try:

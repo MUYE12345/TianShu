@@ -76,6 +76,12 @@ def create_task(current_user = Depends(get_current_user), body: dict = None,
     db.add(task)
     db.commit()
     db.refresh(task)
+    # 同步到后台调度器, 让新任务到点自动执行
+    try:
+        from backend.services.task_scheduler import task_scheduler
+        task_scheduler.reload()
+    except Exception:  # noqa: BLE001
+        pass
     return {"message": "创建成功", "task": _task_to_dict(task)}
 
 
@@ -92,4 +98,10 @@ def delete_task(task_id: int, current_user = Depends(get_current_user),
         raise HTTPException(404, detail="任务不存在")
     db.delete(task)
     db.commit()
+    # 同步移除调度器中的对应 job
+    try:
+        from backend.services.task_scheduler import task_scheduler
+        task_scheduler.reload()
+    except Exception:  # noqa: BLE001
+        pass
     return {"message": "删除成功"}
