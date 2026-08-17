@@ -57,8 +57,13 @@ const sourceTag = (s) => {
 
 function renderSummary(text) {
   if (!text) return ''
-  // 将 Markdown 风格的换行转为 HTML
-  let html = text
+  // 先转义 HTML 再替换 Markdown 风格标记, 防止外部文本注入脚本
+  let html = String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+  html = html
     .replace(/\n/g, '<br>')
     .replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>')
   return html

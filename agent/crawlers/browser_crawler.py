@@ -106,6 +106,11 @@ class BrowserCrawler:
             wait_seconds: 首次等待秒数(JS初始渲染)
             scroll_pause: 每次滚动后等待秒数
         """
+        from agent.crawlers.safety import validate_url
+        err = validate_url(url)
+        if err:
+            print(f"[浏览器爬虫] 安全策略拒绝 {url}: {err}")
+            return None
         if not self._ensure_driver():
             return None
         try:
@@ -127,6 +132,11 @@ class BrowserCrawler:
             scroll_times: 滚动次数
             scroll_pause: 每次滚动后等待秒数
         """
+        from agent.crawlers.safety import validate_url
+        err = validate_url(url)
+        if err:
+            print(f"[浏览器爬虫] 安全策略拒绝 {url}: {err}")
+            return None
         if not self._ensure_driver():
             return None
         try:

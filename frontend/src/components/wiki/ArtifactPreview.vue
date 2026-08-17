@@ -40,6 +40,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import MarkdownIt from 'markdown-it'
+import { safeRender } from '../../utils/sanitize.js'
 
 const props = defineProps({
   artifact: { type: Object, required: true },
@@ -61,7 +62,7 @@ const md = new MarkdownIt({ html: true, linkify: true, typographer: true, breaks
 
 function renderMd(text) {
   if (!text) return ''
-  return md.render(text)
+  return safeRender(md, text)
 }
 
 // PPT 拆分：以 `# ` 开头的为页标题

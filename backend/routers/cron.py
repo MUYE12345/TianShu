@@ -8,6 +8,7 @@ from sqlalchemy.orm import Session
 from backend.database import get_db, engine
 from backend.models.task import ScheduledTask
 from sqlalchemy import inspect, text
+from backend.core.security import get_current_user
 
 # 确保表结构匹配（安全迁移: 只补缺列, 不 drop 整表, 避免清空数据）
 try:
@@ -59,7 +60,8 @@ def list_tasks(db: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_task(body: dict, db: Session = Depends(get_db)):
+def create_task(current_user = Depends(get_current_user), body: dict = None,
+                db: Session = Depends(get_db)):
     """创建定时任务
 
     注意：当前未关联用户，未来应绑定当前认证用户的 user_id。
@@ -78,7 +80,8 @@ def create_task(body: dict, db: Session = Depends(get_db)):
 
 
 @router.delete("/{task_id}")
-def delete_task(task_id: int, db: Session = Depends(get_db)):
+def delete_task(task_id: int, current_user = Depends(get_current_user),
+                db: Session = Depends(get_db)):
     """删除定时任务
 
     注意：当前未校验任务所属用户，任何用户均可删除任意任务。

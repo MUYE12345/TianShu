@@ -58,6 +58,8 @@ const routes = [
         meta: { title: '个人中心', icon: 'User', requiresAuth: true } },
       { path: 'settings/logs', name: 'LogViewer', component: () => import('../views/settings/LogViewer.vue'),
         meta: { title: '日志查看', icon: 'List', requiresAuth: true } },
+      { path: 'settings/harness', name: 'HarnessSettings', component: () => import('../views/settings/HarnessSettings.vue'),
+        meta: { title: '安全围栏', icon: 'Lock', requiresAuth: true } },
     ]
   },
   { path: '/login', name: 'Login', component: () => import('../views/Login.vue') },

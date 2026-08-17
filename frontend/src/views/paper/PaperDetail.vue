@@ -168,7 +168,11 @@ function pageParasOf(pageNum) {
   const isTranslating = translatingPages.value.has(pageNum)
   return enList.map((en, i) => ({
     page: pageNum, idx: i, en,
-    zh: zh[i] || '',
+    // 译文段落数与原文不一致时的兜底:
+    // - 译文段数不足 → 空; 最后一段吸收尾部多出的译文段(LLM 偶发合并段)
+    // - 译文段数超出 → 超出部分并进最后一段, 避免段落错位
+    zh: zh[i] || (i === enList.length - 1 && zh.length > enList.length
+      ? zh.slice(enList.length - 1).join('\n') : ''),
     translating: isTranslating && !zh[i],
     box: boxes[i] || null,
   }))

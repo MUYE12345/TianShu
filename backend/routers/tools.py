@@ -1,6 +1,7 @@
 """工具管理路由"""
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from agent.tools.registry import list_tools
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -12,7 +13,7 @@ def get_tools():
 
 
 @router.put("/{name}/enable")
-def enable_tool(name: str, body: dict):
+def enable_tool(name: str, current_user = Depends(get_current_user), body: dict = None):
     """启用/禁用工具"""
     from agent.tools.registry import _TOOL_REGISTRY
     tool = _TOOL_REGISTRY.get(name)

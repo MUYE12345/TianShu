@@ -1,8 +1,9 @@
 /**
  * Markdown 渲染工具
- * 使用 markdown-it 将 Markdown 文本转为 HTML
+ * 使用 markdown-it 将 Markdown 文本转为 HTML（输出经 DOMPurify 消毒）
  */
 import MarkdownIt from 'markdown-it'
+import { sanitizeHtml } from './sanitize.js'
 
 const md = new MarkdownIt({
   html: true,
@@ -28,9 +29,9 @@ function escapeHtml(str) {
 }
 
 /**
- * 将 Markdown 文本渲染为 HTML
+ * 将 Markdown 文本渲染为 HTML（已消毒，可安全用于 v-html）
  */
 export function markdownToHtml(text) {
   if (!text) return ''
-  return md.render(text)
+  return sanitizeHtml(md.render(text))
 }

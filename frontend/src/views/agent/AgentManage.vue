@@ -79,7 +79,7 @@
               <el-slider v-model="selectedAgent.temperature" :min="0" :max="1" :step="0.1" style="width:200px" />
             </el-form-item>
             <el-form-item label="系统提示">
-              <el-input v-model="selectedAgent.systemPrompt" type="textarea" :rows="4" />
+              <el-input v-model="selectedAgent.system_prompt" type="textarea" :rows="4" />
             </el-form-item>
             <el-form-item>
               <el-button type="primary" @click="saveAgent(selectedAgent)">保存更改</el-button>
@@ -224,10 +224,14 @@ async function handleCreate() {
   creating.value = true
   try {
     const { data } = await axios.post(API, newAgentForm.value)
-    agents.value.push(data)
-    selectedId.value = data.id
+    // 后端返回 {message, agent}, 用完整 agent 记录更新列表并选中
+    if (data?.agent) {
+      agents.value.push(data.agent)
+      selectedId.value = data.agent.id
+    }
     showCreateDialog.value = false
     ElMessage.success('创建成功')
+    await fetchAgents()
   } catch (e) {
     ElMessage.error('创建失败: ' + (e.response?.data?.detail || e.message))
   }

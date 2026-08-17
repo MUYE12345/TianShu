@@ -1,8 +1,9 @@
 """
 设置路由 — 返回实际配置（敏感信息脱敏）
 """
-from fastapi import APIRouter
+from fastapi import APIRouter, Depends
 from backend.config import settings
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -40,7 +41,7 @@ def get_settings():
 
 
 @router.put("")
-def update_settings(body: dict):
+def update_settings(current_user = Depends(get_current_user), body: dict = None):
     """更新设置（仅保存到内存，持久化需扩展）"""
     # 目前仅做配置检查，后续可扩展到配置文件持久化
     return {"status": "ok", "message": "设置已更新"}

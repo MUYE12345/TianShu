@@ -31,18 +31,34 @@ def _is_transient_error(exc: Exception) -> bool:
 
 
 class SimpleTool:
-    """简易工具包装(替代LangChain StructuredTool)"""
+    """简易工具包装(替代LangChain StructuredTool)
 
-    def __init__(self, name: str, description: str, fn: Callable):
+    所有工具调用必经 invoke() — 安全围栏(agent/harness)在这里统一校验与审计。
+    """
+
+    def __init__(self, name: str, description: str, fn: Callable, category: str = "general"):
         self.name = name
         self.description = description
         self._run = fn
+        self.category = category
 
     def invoke(self, kwargs: dict = None) -> str:
-        """执行工具（带30秒超时、一次重试、日志与耗时统计）"""
+        """执行工具（安全围栏校验 + 30秒超时、一次重试、日志与耗时统计）"""
         kwargs = kwargs or {}
-        start_time = time.time()
         tool_name = self.name
+        category = getattr(self, "category", "general")
+
+        # ── 安全围栏: 执行前校验(拦截返回原因, Agent 可见) ──
+        try:
+            from agent.harness.harness import tool_harness
+            allowed, reason = tool_harness.check(tool_name, kwargs, category)
+            if not allowed:
+                tool_harness.record(tool_name, kwargs, False, reason)
+                return f"[安全围栏拦截] {reason}"
+        except Exception:  # noqa: BLE001 围栏自身故障不阻断工具(降级放行)
+            pass
+
+        start_time = time.time()
 
         # 懒加载 logger 以避免循环导入
         try:
@@ -58,22 +74,23 @@ class SimpleTool:
                 future = pool.submit(self._run, **kwargs)
                 return future.result(timeout=30)
 
+        result = None
+        error_msg = None
         try:
             result = _run_in_thread()
         except concurrent.futures.TimeoutError:
             elapsed = time.time() - start_time
+            error_msg = f"[工具执行超时: {tool_name} > 30s]"
             if log:
                 log.warning("工具执行超时 [%s] %.2fs > 30s", tool_name, elapsed)
-            return f"[工具执行超时: {tool_name} > 30s]"
         except TypeError as e:
             elapsed = time.time() - start_time
+            error_msg = f"参数错误: {e}"
             if log:
                 log.warning("工具参数错误 [%s] %.2fs: %s", tool_name, elapsed, e)
-            return f"参数错误: {e}"
         except Exception as e:
             elapsed = time.time() - start_time
-            # Fix 2: 对暂时性错误尝试重试一次
-            # 但不重试 "工具不存在" 或 "参数错误"（已被上面的 TypeError 捕获）
+            # 对暂时性错误尝试重试一次(不重试 "工具不存在"/"参数错误", 已被 TypeError 捕获)
             if _is_transient_error(e):
                 if log:
                     log.info("工具暂时性错误，重试一次 [%s] %.2fs: %s", tool_name, elapsed, e)
@@ -82,29 +99,42 @@ class SimpleTool:
                     elapsed = time.time() - start_time
                     if log:
                         log.info("工具重试成功 [%s] %.2fs", tool_name, elapsed)
-                    return str(result)
                 except concurrent.futures.TimeoutError:
-                    elapsed = time.time() - start_time
+                    error_msg = f"[工具执行超时: {tool_name} > 30s]"
                     if log:
                         log.warning("工具重试也超时 [%s] %.2fs > 30s", tool_name, elapsed)
-                    return f"[工具执行超时: {tool_name} > 30s]"
                 except Exception as retry_e:
-                    elapsed = time.time() - start_time
+                    error_msg = f"执行错误: {retry_e}"
                     if log:
                         log.error("工具重试也失败 [%s] %.2fs: %s", tool_name, elapsed, retry_e)
-                    return f"执行错误: {retry_e}"
+            else:
+                error_msg = f"执行错误: {e}"
+                if log:
+                    log.error("工具执行失败 [%s] %.2fs: %s", tool_name, elapsed, e)
 
-            if log:
-                log.error("工具执行失败 [%s] %.2fs: %s", tool_name, elapsed, e)
-            return f"执行错误: {e}"
+        if error_msg is not None:
+            # 安全围栏: 审计记录(失败也记录)
+            try:
+                from agent.harness.harness import tool_harness
+                tool_harness.record(tool_name, kwargs, True, result=error_msg)
+            except Exception:  # noqa: BLE001
+                pass
+            return error_msg
 
-        # Fix 3: 记录耗时，标记慢工具(>5s)
+        # 记录耗时，标记慢工具(>5s)
         elapsed = time.time() - start_time
         if log:
             if elapsed > 5:
                 log.warning("工具执行较慢 [%s] %.2fs > 5s", tool_name, elapsed)
             else:
                 log.info("工具调用完成 [%s] %.2fs", tool_name, elapsed)
+
+        # 安全围栏: 审计记录
+        try:
+            from agent.harness.harness import tool_harness
+            tool_harness.record(tool_name, kwargs, True, result=str(result))
+        except Exception:  # noqa: BLE001
+            pass
         return str(result)
 
 
@@ -163,6 +193,7 @@ def get_simple_tools(enabled_only: bool = True) -> List[SimpleTool]:
             name=info["name"],
             description=info["description"],
             fn=info["handler"],
+            category=info.get("category", "general"),
         ))
     return tools
 

@@ -1,18 +1,45 @@
 """统一上传路由 — 工具/MCP/技能 上传/注册/删除"""
 import os
+import re
 import json
 import zipfile
 import tempfile
 import shutil
 from pathlib import Path
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
 
 from backend.config import DATA_DIR
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
 UPLOAD_DIR = Path(os.environ.get("UPLOAD_DIR", str(DATA_DIR / "uploads")))
 UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
+
+
+# ── 安全辅助 ─────────────────────────────────────────────
+
+_SAFE_NAME_RE = re.compile(r"^[A-Za-z0-9_\-\.]+$")
+
+
+def _safe_name(name: str, field: str = "名称") -> str:
+    """校验名称只含字母/数字/_-., 拒绝路径分隔符与 '..' (防目录穿越)"""
+    name = (name or "").strip()
+    if not name or name in (".", "..") or not _SAFE_NAME_RE.match(name):
+        raise HTTPException(400, detail=f"{field}不合法: 仅允许字母/数字/_-., 不能含路径字符")
+    return name
+
+
+def _safe_extract(zf: zipfile.ZipFile, target: str):
+    """zip-slip 防护: 拒绝包含 '..' / 绝对路径 / 盘符的压缩项, 再安全解压"""
+    for member in zf.namelist():
+        norm = member.replace("\\", "/")
+        if norm.startswith("/") or (len(norm) > 1 and norm[1] == ":"):
+            raise HTTPException(400, detail=f"压缩包包含非法绝对路径项: {member}")
+        parts = [p for p in norm.split("/") if p not in ("", ".")]
+        if any(p == ".." for p in parts):
+            raise HTTPException(400, detail=f"压缩包包含非法路径项(..): {member}")
+    zf.extractall(target)
 
 
 # ═══════════════════════════════════════
@@ -71,7 +98,8 @@ def _register_from_ns(ns: dict, tool_name: str, description: str = "") -> int:
 
 
 @router.post("/tools")
-async def upload_tool(file: UploadFile = File(...), name: str = Form("")):
+async def upload_tool(current_user = Depends(get_current_user),
+                      file: UploadFile = File(...), name: str = Form("")):
     """上传工具包（.zip 含多个 .py + CLAUDE.md，或单 .py 文件）"""
     filename = file.filename or ""
     content = await file.read()
@@ -82,7 +110,7 @@ async def upload_tool(file: UploadFile = File(...), name: str = Form("")):
             with open(zip_path, "wb") as f:
                 f.write(content)
             with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(tmp)
+                _safe_extract(zf, tmp)
 
             desc = ""
             claude_path = os.path.join(tmp, "CLAUDE.md")
@@ -94,7 +122,7 @@ async def upload_tool(file: UploadFile = File(...), name: str = Form("")):
             if not py_files:
                 raise HTTPException(400, "ZIP 中未找到 .py 文件")
 
-            tool_name = name or filename.replace(".zip", "")
+            tool_name = _safe_name(name or filename.replace(".zip", ""), "工具名")
             save_dir = UPLOAD_DIR / "tools" / tool_name
             shutil.rmtree(save_dir, ignore_errors=True)
             shutil.copytree(tmp, save_dir)
@@ -111,7 +139,7 @@ async def upload_tool(file: UploadFile = File(...), name: str = Form("")):
             return {"message": f"工具包 {tool_name} 已安装，注册 {total} 个工具", "name": tool_name}
 
     elif filename.endswith(".py"):
-        tool_name = name or filename.replace(".py", "")
+        tool_name = _safe_name(name or filename.replace(".py", ""), "工具名")
         save_dir = UPLOAD_DIR / "tools" / tool_name
         save_dir.mkdir(parents=True, exist_ok=True)
         (save_dir / filename).write_bytes(content)
@@ -130,7 +158,7 @@ async def upload_tool(file: UploadFile = File(...), name: str = Form("")):
 # ═══════════════════════════════════════
 
 @router.post("/mcp")
-async def upload_mcp(body: dict):
+async def upload_mcp(current_user = Depends(get_current_user), body: dict = None):
     """注册 MCP 服务器连接"""
     mcp_type = body.get("type", "stdio")
     if mcp_type not in ("stdio", "http", "sse"):
@@ -176,7 +204,8 @@ async def upload_mcp(body: dict):
 # ═══════════════════════════════════════
 
 @router.post("/skills")
-async def upload_skill(file: UploadFile = File(...)):
+async def upload_skill(current_user = Depends(get_current_user),
+                       file: UploadFile = File(...)):
     """上传技能包（.md / .zip）"""
     filename = file.filename or ""
     content = await file.read()
@@ -188,7 +217,7 @@ async def upload_skill(file: UploadFile = File(...)):
             with open(zip_path, "wb") as f:
                 f.write(content)
             with zipfile.ZipFile(zip_path, "r") as zf:
-                zf.extractall(tmp)
+                _safe_extract(zf, tmp)
 
             # 查找 SKILL.md 或 CLAUDE.md
             skill_md = None
@@ -207,7 +236,8 @@ async def upload_skill(file: UploadFile = File(...)):
                 md_content = f.read()
 
             # 提取元数据
-            skill_name = _parse_skill_name(md_content) or os.path.splitext(filename)[0]
+            skill_name = _safe_name(
+                _parse_skill_name(md_content) or os.path.splitext(filename)[0], "技能名")
 
             # 安装到 skills 目录: 复制整个技能包(scripts/references/assets + SKILL.md),
             # 而不是只写 SKILL.md —— 保证目录是完整的技能包
@@ -219,7 +249,8 @@ async def upload_skill(file: UploadFile = File(...)):
 
     elif filename.endswith(".md"):
         md_content = content.decode("utf-8")
-        skill_name = _parse_skill_name(md_content) or filename.replace(".md", "")
+        skill_name = _safe_name(
+            _parse_skill_name(md_content) or filename.replace(".md", ""), "技能名")
         skills_dir = Path("agent/skills") / skill_name
         skills_dir.mkdir(parents=True, exist_ok=True)
         (skills_dir / "SKILL.md").write_text(md_content, encoding="utf-8")
@@ -253,11 +284,9 @@ def _parse_skill_name(markdown: str) -> str | None:
 # ═══════════════════════════════════════
 
 @router.delete("/tools/{tool_name}")
-def delete_tool(tool_name: str):
+def delete_tool(tool_name: str, current_user = Depends(get_current_user)):
     """删除上传的工具: 反注册其 handler + 删除保存的文件。"""
-    name = tool_name.strip()
-    if not name:
-        raise HTTPException(400, detail="工具名不能为空")
+    name = _safe_name(tool_name, "工具名")
     # 反注册注册表中所有以 {name}_ 开头的工具
     from agent.tools.registry import _TOOL_REGISTRY, unregister_tool
     removed = [k for k in list(_TOOL_REGISTRY.keys()) if k == name or k.startswith(f"{name}_")]
@@ -275,11 +304,9 @@ _BUILTIN_SKILL_DIRS = {"current-news", "daily-news", "paper-analyzer", "skill-cr
 
 
 @router.delete("/skills/{skill_name}")
-def delete_skill(skill_name: str):
+def delete_skill(skill_name: str, current_user = Depends(get_current_user)):
     """删除上传/社区技能: 移除整个技能包目录(scripts/references/assets/SKILL.md)并重载。"""
-    name = skill_name.strip()
-    if not name:
-        raise HTTPException(400, detail="技能名不能为空")
+    name = _safe_name(skill_name, "技能名")
     if name in _BUILTIN_SKILL_DIRS:
         raise HTTPException(400, detail=f"内置技能 {name} 不可删除")
     from agent.skills.skill_manager import skill_manager
@@ -292,7 +319,7 @@ def delete_skill(skill_name: str):
 
 
 @router.delete("/mcp/{name}")
-def delete_mcp_server(name: str):
+def delete_mcp_server(name: str, current_user = Depends(get_current_user)):
     """删除已注册的外部 MCP 服务器(反注册其工具 + 删配置)。"""
     if not (name or "").strip():
         raise HTTPException(400, detail="服务器名不能为空")

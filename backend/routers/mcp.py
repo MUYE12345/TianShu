@@ -4,11 +4,12 @@
 - 社区工具(github/slack/jira/sql)安装时注册真实 handler(配置驱动), 卸载反注册
 - 安装状态持久化到 data/marketplace.json, 重启保留
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from agent.mcp_service import mcp_service
 from agent.mcp.community_mcp import register_community_mcp, unregister_community_mcp, MCP_ID_TO_TOOL
 from backend.services.marketplace_store import marketplace_store, MCP_MARKETPLACE
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -60,7 +61,7 @@ def _find(tool_id: str):
 
 
 @router.post("/install")
-def install_mcp_tool(body: dict):
+def install_mcp_tool(current_user = Depends(get_current_user), body: dict = None):
     """安装MCP工具: 注册真实 handler + 持久化"""
     tool_id = (body.get("id") or body.get("name", "")).strip()
     item = _find(tool_id)
@@ -74,19 +75,19 @@ def install_mcp_tool(body: dict):
 
 
 @router.post("/{tool_id}/install")
-def install_mcp_tool_by_id(tool_id: str):
+def install_mcp_tool_by_id(tool_id: str, current_user = Depends(get_current_user)):
     """安装MCP工具(前端用 /{id}/install 路径)"""
     return install_mcp_tool({"id": tool_id})
 
 
 @router.post("/{tool_id}/uninstall")
-def uninstall_mcp_tool_by_id(tool_id: str):
+def uninstall_mcp_tool_by_id(tool_id: str, current_user = Depends(get_current_user)):
     """卸载MCP工具(前端用 /{id}/uninstall 路径)"""
     return uninstall_mcp_tool({"id": tool_id})
 
 
 @router.post("/uninstall")
-def uninstall_mcp_tool(body: dict):
+def uninstall_mcp_tool(current_user = Depends(get_current_user), body: dict = None):
     """卸载MCP工具: 反注册真实 handler + 持久化"""
     tool_id = (body.get("id") or body.get("name", "")).strip()
     item = _find(tool_id)
@@ -106,7 +107,7 @@ def uninstall_mcp_tool(body: dict):
 
 
 @router.delete("/{name}")
-def uninstall_mcp_tool_by_name(name: str):
+def uninstall_mcp_tool_by_name(name: str, current_user = Depends(get_current_user)):
     """卸载MCP工具(通过 id 或 注册名)"""
     tool_id = name
     if name in MCP_ID_TO_TOOL.values():

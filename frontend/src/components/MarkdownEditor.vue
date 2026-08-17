@@ -19,6 +19,7 @@
 <script setup>
 import { computed } from 'vue'
 import MarkdownIt from 'markdown-it'
+import { sanitizeHtml } from '../utils/sanitize.js'
 
 const props = defineProps({
   modelValue: { type: String, default: '' }
@@ -33,7 +34,7 @@ const md = new MarkdownIt({
 
 const renderedHtml = computed(() => {
   if (!props.modelValue) return '<p style="color:#999">暂无内容</p>'
-  return md.render(props.modelValue)
+  return sanitizeHtml(md.render(props.modelValue))
 })
 
 const onInput = (e) => {

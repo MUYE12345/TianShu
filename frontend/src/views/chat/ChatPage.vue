@@ -125,6 +125,13 @@
                         {{ msg.time }}
                       </span>
                     </div>
+                    <!-- 重新生成: 仅最后一条 assistant 消息显示, 重发上一条用户提问 -->
+                    <div v-if="!streaming && idx === messages.length - 1 && !streamError" class="msg-regen">
+                      <button class="regen-btn" title="重新生成回答" @click="regenerate">
+                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="23 4 23 10 17 10"/><path d="M20.49 15a9 9 0 1 1-2.12-9.36L23 10"/></svg>
+                        重新生成
+                      </button>
+                    </div>
                   </div>
                 </div>
               </template>
@@ -167,7 +174,8 @@
               <div class="assistant-stack">
                 <ThinkingBlock v-if="thinkingSteps.length > 0" :steps="thinkingSteps" :streaming="true" />
                 <div class="msg-card streaming">
-                  <div class="msg-body" v-html="renderMarkdown(streamingText)" />
+                  <!-- 流式期间用轻量渲染(仅转义+换行), 避免每个 token 触发 markdown-it 全量渲染 -->
+                  <div class="msg-body" v-html="renderStreamingText(streamingText)" />
                   <span class="cursor-blink">▍</span>
                 </div>
               </div>
@@ -259,7 +267,7 @@ export default { name: 'ChatPage' }
 </script>
 
 <script setup>
-import { ref, computed, onMounted, onActivated, nextTick } from 'vue'
+import { ref, computed, onMounted, onActivated, nextTick, watch } from 'vue'
 import { useRoute } from 'vue-router'
 import { ArrowDown, Loading } from '@element-plus/icons-vue'
 import axios from 'axios'
@@ -267,6 +275,7 @@ import { ElMessage } from 'element-plus'
 import MarkdownIt from 'markdown-it'
 import ToolCallCard from './components/ToolCallCard.vue'
 import ThinkingBlock from './components/ThinkingBlock.vue'
+import { safeRender } from '../../utils/sanitize.js'
 
 // ── Markdown-it 实例 ─────────────────────────────────────────────
 const md = new MarkdownIt({
@@ -300,6 +309,7 @@ const streamingText = ref('')
 const inputText = ref('')
 const statusText = ref('')
 const streaming = ref(false)
+const streamError = ref(false)
 const expertMode = ref(false)
 const thinkingMode = ref(false)
 const toolCalls = ref([])
@@ -427,6 +437,7 @@ async function ensureSession(text) {
   currentSessionId.value = data.id
   localStorage.setItem('lastChatSessionId', String(data.id))
   try {
+    // 会话标题端点挂在 /api/sessions 前缀下(backend/routers/session.py)
     await axios.put(`/api/sessions/${data.id}`, { title: (text || '').slice(0, 20) })
   } catch { /* 标题失败不阻断 */ }
   await loadSessions()
@@ -440,15 +451,20 @@ function stopStream() {
   }
   streaming.value = false
   statusText.value = ''
+  flushStreamingText()  // 冲刷 rAF 待渲染文本, 避免停止后残留
   if (streamingText.value) {
     messages.value.push({
       role: 'assistant',
       content: streamingText.value,
+      thinking: thinkingSteps.value.length ? [...thinkingSteps.value] : [],
       id: 'msg_' + Date.now().toString(36),
       time: nowTime(),
     })
-    streamingText.value = ''
   }
+  // 停止后清理本轮的思考步骤与工具调用状态, 避免残留到下一轮
+  thinkingSteps.value = []
+  toolCalls.value = []
+  streamingText.value = ''
 }
 
 function clearMessages() {
@@ -463,15 +479,60 @@ function quickChat(text) {
   sendMessage()
 }
 
+// 重新生成: 删掉最后一条 assistant 消息, 重发它前面的最后一条用户提问
+function regenerate() {
+  if (streaming.value) return
+  const last = messages.value[messages.value.length - 1]
+  if (!last || last.role !== 'assistant') return
+  // 找它之前的最后一条用户消息
+  let userMsg = null
+  for (let i = messages.value.length - 2; i >= 0; i--) {
+    if (messages.value[i].role === 'user') { userMsg = messages.value[i]; break }
+  }
+  if (!userMsg) return
+  messages.value = messages.value.slice(0, -1)  // 移除旧回答
+  inputText.value = userMsg.content
+  sendMessage()
+}
+
 // ── Markdown 渲染（安全过滤） ────────────────────────────────────
 function renderMarkdown(text) {
   if (!text) return ''
-  const html = md.render(text)
-  // 防止 XSS：只允许白名单标签
-  return html
-    .replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '')
-    .replace(/on\w+\s*=\s*"[^"]*"/gi, '')
-    .replace(/on\w+\s*=\s*'[^']*'/gi, '')
+  // 统一走 DOMPurify 消毒: 拦截 script / on* 事件属性 / javascript: 协议等
+  return safeRender(md, text)
+}
+
+// 流式期间的轻量渲染: 只做 HTML 转义 + 换行, 不做 markdown-it 全量渲染,
+// 避免每个 token 事件都触发整段 markdown 重渲染(长回答卡顿的根因)。
+function renderStreamingText(text) {
+  if (!text) return ''
+  return String(text)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/\n/g, '<br>')
+}
+
+// rAF 节流的流式文本更新: 高频 token 只累加字符串, 每帧最多渲染一次
+let rafPendingText = ''
+let rafTimer = null
+function scheduleStreamingText(text) {
+  rafPendingText = text
+  if (rafTimer) return
+  rafTimer = requestAnimationFrame(() => {
+    rafTimer = null
+    streamingText.value = rafPendingText
+    // 流式过程自动滚动到底部(节流后频率可控)
+    nextTick(() => bottomRef.value?.scrollIntoView({ behavior: 'smooth' }))
+  })
+}
+function flushStreamingText() {
+  if (rafTimer) {
+    cancelAnimationFrame(rafTimer)
+    rafTimer = null
+    streamingText.value = rafPendingText
+  }
 }
 
 // ── 发送消息 ──────────────────────────────────────────────────────
@@ -482,6 +543,7 @@ async function sendMessage() {
   messages.value.push({ role: 'user', content: text, id: msgId, time: nowTime() })
   inputText.value = ''
   streaming.value = true
+  streamError.value = false
   statusText.value = '思考中...'
   toolCalls.value = []
   thinkingSteps.value = []
@@ -492,11 +554,15 @@ async function sendMessage() {
     abortRef.value = controller
     const resp = await fetch(`/api/chat/sessions/${sid}/messages`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
+      },
       body: JSON.stringify({
         content: text,
         expert_mode: expertMode.value,
         thinking_mode: thinkingMode.value,
+        agent_id: currentAgentId.value,
       }),
       signal: controller.signal,
     })
@@ -531,7 +597,8 @@ async function sendMessage() {
 
           if (type === 'token') {
             fullText += event.text || ''
-            streamingText.value = fullText
+            // rAF 节流更新: 避免每个 token 都触发整段渲染
+            scheduleStreamingText(fullText)
           } else if (type === 'thinking') {
             // 仅思考模式开启时展示思考过程
             if (thinkingMode.value) {
@@ -546,7 +613,9 @@ async function sendMessage() {
           } else if (type === 'tool_start') {
             toolCalls.value.push({ id: 'tc_' + Date.now().toString(36), name: event.name, status: 'running', args: event.args ?? event.raw_args ?? '' })
           } else if (type === 'tool_result') {
-            const tc = toolCalls.value.find(t => t.name === event.name)
+            // 匹配第一个仍处于 running 的同名工具卡片: 同名工具多次调用时按顺序配对,
+            // 而不是永远命中第一张同名卡片(会错配结果)
+            const tc = toolCalls.value.find(t => t.name === event.name && t.status === 'running')
             if (tc) {
               tc.status = 'done'
               tc.result = event.result
@@ -562,8 +631,12 @@ async function sendMessage() {
             if (event.totalCostUSD !== undefined) totalCostUSD = event.totalCostUSD
             totalTokens.value = totalInputTokens + totalOutputTokens
           } else if (type === 'error') {
+            // 错误事件: 标记错误并弹出提示, 不再混入正常流式文本
+            streamError.value = true
             fullText = event.message || '回答失败，请稍后重试'
-            streamingText.value = fullText
+            ElMessage.error(fullText)
+            flushStreamingText()
+            streamingText.value = ''
           }
         } catch {
           // 忽略解析错误
@@ -572,7 +645,7 @@ async function sendMessage() {
     }
 
     // 流结束，推入正式消息（思考过程紧贴其上，一并归属本条消息）
-    if (fullText) {
+    if (fullText && !streamError.value) {
       const duration = ((Date.now() - durationStart) / 1000).toFixed(1)
       messages.value.push({
         role: 'assistant',
@@ -598,7 +671,10 @@ async function sendMessage() {
     }
   }
 
+  // 冲刷未渲染的流式文本, 清理 rAF 定时器
+  flushStreamingText()
   streaming.value = false
+  streamError.value = false
   streamingText.value = ''
   statusText.value = ''
   thinkingSteps.value = []
@@ -628,6 +704,15 @@ onMounted(async () => {
 })
 
 onActivated(async () => { await loadSessions() })
+
+// KeepAlive 复用同一组件实例: 从 /chat/5 切到 /chat/6 时 URL 变了但实例没重建,
+// 必须监听路由参数变化重新加载目标会话, 否则会一直停留在旧会话
+watch(() => route.params.sessionId, async (newId, oldId) => {
+  if (!newId) return
+  if (String(newId) === String(currentSessionId.value)) return
+  if (streaming.value) stopStream()
+  await switchSession(newId)
+})
 </script>
 
 <style scoped>
@@ -1001,6 +1086,19 @@ onActivated(async () => { await loadSessions() })
   border-top: 1px solid var(--border-light);
   flex-wrap: wrap;
 }
+
+/* ── 重新生成按钮 ── */
+.msg-regen { margin-top: 6px; }
+.regen-btn {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 3px 10px; border-radius: 999px;
+  border: 1px solid var(--border);
+  background: var(--bg-subtle);
+  color: var(--text-secondary);
+  font-size: 11px; cursor: pointer;
+  transition: all .15s;
+}
+.regen-btn:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-light); }
 .user-footer {
   border-top-color: var(--border-light);
   justify-content: flex-end;

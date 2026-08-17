@@ -48,11 +48,18 @@
             </div>
           </div>
           <div class="kb-card-body">
-            <div class="kb-card-title">{{ kb.title }}</div>
+            <div class="kb-card-title">
+              {{ kb.title }}
+              <!-- 角色标识: 共享给我的显示角色, 自己的不显示 -->
+              <el-tag v-if="kb.my_role === 'admin'" size="small" type="danger" effect="plain" style="margin-left:6px">管理员</el-tag>
+              <el-tag v-else-if="kb.my_role === 'editor'" size="small" type="warning" effect="plain" style="margin-left:6px">编辑</el-tag>
+              <el-tag v-else-if="kb.my_role === 'viewer'" size="small" type="info" effect="plain" style="margin-left:6px">查看</el-tag>
+            </div>
             <div class="kb-card-desc">{{ kb.description || '暂无简介' }}</div>
             <div class="kb-card-meta">
               <span>📄 {{ kb.source_count || 0 }} 来源</span>
               <span>🗂 {{ artifactCount(kb) }} 产物</span>
+              <span v-if="kb.owner_name" class="kb-owner">👤 {{ kb.owner_name }}</span>
             </div>
             <div class="kb-card-date">{{ (kb.created_at || '').slice(0, 10) }}</div>
           </div>
@@ -266,6 +273,7 @@ onMounted(loadKbs)
 .kb-card-title { font-size: 14px; font-weight: 700; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-card-desc { font-size: 12px; color: var(--text-tertiary); margin-top: 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kb-card-meta { display: flex; gap: 12px; font-size: 11px; color: var(--text-secondary); margin-top: 10px; }
+.kb-owner { margin-left: auto; color: var(--text-tertiary); }
 .kb-card-date { font-size: 11px; color: var(--text-muted); margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--border-light); }
 
 .kb-empty { grid-column: 1 / -1; text-align: center; padding: 40px 0; color: var(--text-tertiary); }

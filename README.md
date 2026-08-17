@@ -180,6 +180,28 @@ REVIEW_MODEL_NAME=your-review-model # 审查模型
 
 ## 核心特性
 
+### 🛡️ 安全围栏（Tool Harness）
+
+所有 Agent 工具调用（`SimpleTool.invoke` 统一入口）默认经过五层防护，防止危险操作：
+
+| 防护层 | 说明 | 默认 |
+|--------|------|------|
+| **紧急熔断** | 一键暂停全部工具执行（事故时先按这个） | 关 |
+| **风险分级** | 危险工具（shell/cli/git/沙箱代码执行/用户上传工具）安全模式下**默认禁止** | 安全模式开 |
+| **命令白名单** | 即使关闭安全模式，`rm -rf` / `format` / `shutdown` 等破坏性命令仍被拦截 | 常开 |
+| **路径围栏** | 写文件/工作目录必须落在项目根内，防止越界写入 | 开 |
+| **内容级限制** | 敏感文件（`.env`/数据库/私钥/`.git` 凭据）禁止读写；写工具只能写对应扩展名（防篡改代码/配置） | 常开 |
+| **Docker-only 执行** | 沙箱代码执行必须在 Docker 容器内（`--network=none --cap-drop=ALL`），无本地直跑回退 | 强制 |
+| **爬虫 SSRF 防护** | 任意 URL 抓取仅允许 http/https，拒绝内网/回环/链路本地/云元数据地址，防攻击其他平台 | 常开 |
+| **限流 + 审计** | 每分钟调用上限；全量调用记录（内存 + `data/harness/audit.jsonl`） | 开 |
+
+管理界面：侧栏「系统 → 安全围栏」（`/settings/harness`），可开关各项策略、查看风险分级与审计。
+管理 API（需登录）：`GET /api/harness/status`、`GET /api/harness/audit`、
+`POST /api/harness/safe-mode`、`POST /api/harness/emergency-stop`、
+`POST /api/harness/path-fence`、`POST /api/harness/block-tool`。
+
+> 关闭安全模式可让 Agent 执行 shell/git 等操作（仍受命令白名单与审计约束）；想完全放开或收紧，用上面的 API 调整。
+
 ### 真实的多智能体编排（参考 tianzhi2 / LangGraph）
 
 - 单智能体走 LangGraph（Plan → Execute → Reflect），工具循环有预算上限，回答干净

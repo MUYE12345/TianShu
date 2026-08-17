@@ -92,6 +92,9 @@ async def run_orchestration(task: str, mode: str, nodes: list,
     # ── 2. 子智能体并行执行 ──
     results: dict = {}
 
+    # 单个 Worker 的超时保护: 防止某模型挂起导致整个编排卡死(默认 120s)
+    ORCH_WORKER_TIMEOUT = 120
+
     async def run_worker(node):
         name = node.get("name", "成员")
         await event_queue.put({"type": "agent_turn", "agent": name, "status": "start"})
@@ -102,10 +105,18 @@ async def run_orchestration(task: str, mode: str, nodes: list,
             + (f"## 你的职责\n{duty}\n\n" if duty else "")
             + f"请按你的角色完成这部分工作，直接输出你的结论（不要提及自己是AI）。"
         )
-        # 结论流式输出
-        await event_queue.put({"type": "token", "text": f"\n\n**【{name} 的结论】**\n"})
-        result = await _call_llm_stream(llm, node_prompt, user_prompt, event_queue)
-        await event_queue.put({"type": "token", "text": "\n"})
+
+        async def _run():
+            # 结论流式输出
+            await event_queue.put({"type": "token", "text": f"\n\n**【{name} 的结论】**\n"})
+            result = await _call_llm_stream(llm, node_prompt, user_prompt, event_queue)
+            await event_queue.put({"type": "token", "text": "\n"})
+            return result
+
+        try:
+            result = await asyncio.wait_for(_run(), timeout=ORCH_WORKER_TIMEOUT)
+        except asyncio.TimeoutError:
+            result = f"（该智能体执行超时({ORCH_WORKER_TIMEOUT}s)，已跳过）"
         await event_queue.put({"type": "agent_turn", "agent": name, "status": "end"})
         return name, result
 

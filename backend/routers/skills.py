@@ -5,11 +5,12 @@
 - enable    → 真实切换技能启用状态
 - 状态持久化到 data/marketplace.json
 """
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from backend.services.marketplace_store import (
     marketplace_store, SKILL_BUILTIN_MARKET, SKILL_COMMUNITY_IDS,
 )
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -82,7 +83,7 @@ def _find(skill_id: str):
 
 
 @router.post("/install")
-def install_skill(body: dict):
+def install_skill(current_user = Depends(get_current_user), body: dict = None):
     """安装技能: 社区技能创建真实 SKILL.md + 重载; 内置确认存在"""
     skill_id = (body.get("id") or body.get("name", "")).strip()
     real = _find(skill_id)
@@ -98,19 +99,19 @@ def install_skill(body: dict):
 
 
 @router.post("/{skill_id}/install")
-def install_skill_by_id(skill_id: str):
+def install_skill_by_id(skill_id: str, current_user = Depends(get_current_user)):
     """安装技能(前端用 /{id}/install 路径)"""
     return install_skill({"id": skill_id})
 
 
 @router.post("/{skill_id}/uninstall")
-def uninstall_skill_by_id(skill_id: str):
+def uninstall_skill_by_id(skill_id: str, current_user = Depends(get_current_user)):
     """卸载技能(前端用 /{id}/uninstall 路径)"""
     return uninstall_skill({"id": skill_id})
 
 
 @router.post("/uninstall")
-def uninstall_skill(body: dict):
+def uninstall_skill(current_user = Depends(get_current_user), body: dict = None):
     """卸载技能: 社区技能删除 SKILL.md + 重载; 持久化"""
     skill_id = (body.get("id") or body.get("name", "")).strip()
     if skill_id not in COMMUNITY_IDS:
@@ -123,7 +124,7 @@ def uninstall_skill(body: dict):
 
 
 @router.post("/{name}/enable")
-def toggle_skill(name: str, body: dict = None):
+def toggle_skill(name: str, current_user = Depends(get_current_user), body: dict = None):
     """启用/禁用SKILL(真实切换, 持久化)"""
     body = body or {}
     enabled = body.get("enabled", True)

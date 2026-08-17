@@ -57,8 +57,9 @@ class PetWindow:
         # 事件
         self.canvas.bind('<Button-1>', self._on_press)
         self.canvas.bind('<B1-Motion>', self._on_drag)
-        self.canvas.bind('<Button-3>', lambda e: self.close())
-        self.win.bind('<Escape>', lambda e: self.close())
+        # 右键/Esc 只隐藏(可重开), 彻底退出请用桌面管理器的 [✕] 或 Ctrl+Alt+Q
+        self.canvas.bind('<Button-3>', lambda e: self.hide())
+        self.win.bind('<Escape>', lambda e: self.hide())
 
         self._animate()
         self._check_reminders()
@@ -166,6 +167,10 @@ class PetWindow:
     def show(self):
         self.win.deiconify()
         self.win.lift()
+
+    def hide(self):
+        """隐藏窗口(不销毁, 可随时重开)"""
+        self.win.withdraw()
 
     def close(self):
         self.win.destroy()

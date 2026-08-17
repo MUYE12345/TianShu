@@ -66,7 +66,8 @@ class FloatingWindow:
         self.canvas.bind('<B1-Motion>', self._on_drag)
         self.canvas.bind('<Double-Button-1>', self._on_double_click)
         self.canvas.bind('<Button-3>', self._show_menu)
-        self.win.bind('<Escape>', lambda e: self.close())
+        # Esc 只隐藏(可重开), 彻底退出请用桌面管理器的 [✕] 或 Ctrl+Alt+Q
+        self.win.bind('<Escape>', lambda e: self.hide())
 
         self.trans_win = None
 
@@ -94,6 +95,7 @@ class FloatingWindow:
     def _show_menu(self, event):
         menu = tk.Menu(self.win, tearoff=0)
         menu.add_command(label="翻译", command=self._start_translate)
+        menu.add_command(label="隐藏", command=self.hide)
         menu.add_command(label="退出", command=self.close)
         menu.tk_popup(event.x_root, event.y_root)
 

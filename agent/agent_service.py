@@ -11,8 +11,12 @@ from agent.rag_engine import rag_engine
 class AgentService:
     async def run(self, user_input: str, session_id: str,
                   chat_history: list = None, multi_agent: bool = False,
-                  expert_mode: bool = False, thinking_mode: bool = False):
-        """执行对话请求, 产出 SSE 事件流。"""
+                  expert_mode: bool = False, thinking_mode: bool = False,
+                  agent_system_prompt: str = ""):
+        """执行对话请求, 产出 SSE 事件流。
+
+        agent_system_prompt: 所选智能体的角色提示词(来自「智能体管理」), 空串表示默认天枢Agent。
+        """
         from agent.langgraph_agent import run_agent
         # RAG 上下文: 检索 Wiki+知识+对话, 失败返回空串不影响主流程
         rag_context = ""
@@ -25,6 +29,7 @@ class AgentService:
             expert_mode=expert_mode or multi_agent,
             thinking_mode=thinking_mode,
             rag_context=rag_context,
+            agent_system_prompt=agent_system_prompt,
         ):
             yield event
 

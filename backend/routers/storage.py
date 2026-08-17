@@ -5,9 +5,10 @@
 """
 import os as _os
 import uuid
-from fastapi import APIRouter, UploadFile, File, HTTPException
+from fastapi import APIRouter, UploadFile, File, HTTPException, Depends
 from backend.config import settings
 from backend.core.logger import log
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -19,7 +20,8 @@ ALLOWED_EXTS = {".pdf", ".docx", ".doc", ".xlsx", ".xls", ".pptx", ".ppt",
 
 
 @router.post("/upload")
-async def upload_file(file: UploadFile = File(...)):
+async def upload_file(current_user = Depends(get_current_user),
+                      file: UploadFile = File(...)):
     """上传文件到存储目录(校验大小/扩展名, 唯一命名防覆盖)"""
     filename = file.filename or "upload"
     ext = _os.path.splitext(filename)[1].lower()

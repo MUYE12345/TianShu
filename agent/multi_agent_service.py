@@ -130,7 +130,7 @@ FINAL_RESULT: {"success": true/false, "message": "摘要", "details": "详细内
                             final_result.model_dump(),
                         )
                         break
-                    except (json.JSONDecodeError, Exception) as e:
+                    except (json.JSONDecodeError, ValueError) as e:
                         log.warning("[Worker %s] 结果解析失败: %s", self.name, e)
                         final_result = WorkerResult(
                             success=False,
@@ -452,9 +452,16 @@ class MasterAgent:
         except Exception:  # noqa: BLE001
             return None  # 审查不可用 → 放行原回答
 
-        # reject → 回炉一次(带审查意见)
+        # reject → 回炉一次(带审查意见 + 原回答 + 成员结果, 避免凭空重写丢信息)
         try:
-            feedback = f"独立审查认为上述回答不合格, 请重写以满足用户需求, 只输出最终回答:\n用户需求: {user_input}"
+            worker_summaries = agent_memory.get_all_worker_summaries()
+            feedback = (
+                f"独立审查认为你刚才的回答不合格(未满足用户需求/编造/遗漏关键信息)。\n"
+                f"请基于以下信息重写一个更好的回答, 只输出最终回答:\n\n"
+                f"用户需求: {user_input}\n\n"
+                f"## 子智能体执行结果\n{worker_summaries or '(无)'}\n\n"
+                f"## 原回答(需要改进)\n{response[:1500]}"
+            )
             rewrite = await self.llm.ainvoke(feedback)
             return str(rewrite).strip()
         except Exception:  # noqa: BLE001

@@ -39,12 +39,13 @@
         <template #default="{row}">
           <el-tag v-if="row.status==='parsed'" type="success" size="small">✅ 已解析</el-tag>
           <el-tag v-else-if="row.status==='ocr_processing'" type="warning" size="small">⏳ 解析中</el-tag>
+          <el-tag v-else-if="row.status==='error'" type="danger" size="small">❌ 解析失败</el-tag>
           <el-tag v-else type="info" size="small">📄 待解析</el-tag>
         </template>
       </el-table-column>
       <el-table-column label="操作" width="180">
         <template #default="{row}">
-          <el-button v-if="row.status==='pending'" size="small" type="primary" @click="startOcr(row)">🔍 解析</el-button>
+          <el-button v-if="row.status==='pending' || row.status==='error'" size="small" type="primary" @click="startOcr(row)">🔍 解析</el-button>
           <el-button v-if="row.status==='parsed' || row.status==='ocr_done'" size="small" @click="$router.push('/paper/'+row.id)">查看</el-button>
           <el-button size="small" type="danger" @click="deletePaper(row.id)">删除</el-button>
         </template>

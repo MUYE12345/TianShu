@@ -205,18 +205,22 @@ const embeddingModels = computed(() => models.value.filter(m => m.model_type ===
 const visionModels = computed(() => models.value.filter(m => m.model_type === 'llm' && m.vision_support && m.is_active))
 
 // ── API helpers ──
-async function apiGet(path) { const r = await fetch(path); return r.json() }
+function authHeaders(extra = {}) {
+  const token = localStorage.getItem('token')
+  return { ...extra, ...(token ? { Authorization: `Bearer ${token}` } : {}) }
+}
+async function apiGet(path) { const r = await fetch(path, { headers: authHeaders() }); return r.json() }
 async function apiPost(path, body) {
-  const r = await fetch(path, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const r = await fetch(path, { method: 'POST', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) })
   if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`) }
   return r.json()
 }
 async function apiPut(path, body) {
-  const r = await fetch(path, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) })
+  const r = await fetch(path, { method: 'PUT', headers: authHeaders({ 'Content-Type': 'application/json' }), body: JSON.stringify(body) })
   if (!r.ok) { const e = await r.json().catch(() => ({})); throw new Error(e.detail || `HTTP ${r.status}`) }
   return r.json()
 }
-async function apiDel(path) { await fetch(path, { method: 'DELETE' }) }
+async function apiDel(path) { await fetch(path, { method: 'DELETE', headers: authHeaders() }) }
 
 async function refresh() {
   loading.value = true
@@ -311,7 +315,7 @@ async function deleteModel(m) {
     await ElMessageBox.confirm('确定删除模型 "' + m.name + '"?', '确认', { type: 'warning' })
   } catch { return /* 取消 */ }
   try {
-    const r = await fetch('/api/models/' + m.id, { method: 'DELETE' })
+    const r = await fetch('/api/models/' + m.id, { method: 'DELETE', headers: authHeaders() })
     if (!r.ok) {
       const e = await r.json().catch(() => ({}))
       throw new Error(e.detail || `HTTP ${r.status}`)

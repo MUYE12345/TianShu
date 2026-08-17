@@ -7,6 +7,7 @@ from sqlalchemy import update
 
 from backend.database import get_db
 from backend.core.logger import log
+from backend.core.security import get_current_user
 from backend.models.model_provider import ModelProvider
 from pydantic import BaseModel, Field
 
@@ -140,7 +141,8 @@ def get_model_defaults(db: Session = Depends(get_db)):
 
 
 @router.post("")
-def create_model(req: ModelProviderCreate, db: Session = Depends(get_db)):
+def create_model(req: ModelProviderCreate, current_user = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
     """创建模型提供商"""
     model = ModelProvider(
         name=req.name.strip() or req.model_name.strip(),
@@ -164,7 +166,9 @@ def create_model(req: ModelProviderCreate, db: Session = Depends(get_db)):
 
 
 @router.put("/{model_id}")
-def update_model(model_id: int, req: ModelProviderUpdate, db: Session = Depends(get_db)):
+def update_model(model_id: int, req: ModelProviderUpdate,
+                 current_user = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
     """更新模型提供商"""
     model = db.query(ModelProvider).filter(ModelProvider.id == model_id).first()
     if not model:
@@ -185,7 +189,8 @@ def update_model(model_id: int, req: ModelProviderUpdate, db: Session = Depends(
 
 
 @router.delete("/{model_id}")
-def delete_model(model_id: int, db: Session = Depends(get_db)):
+def delete_model(model_id: int, current_user = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
     """删除模型提供商"""
     model = db.query(ModelProvider).filter(ModelProvider.id == model_id).first()
     if not model:
@@ -197,7 +202,8 @@ def delete_model(model_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{model_id}/toggle")
-def toggle_model(model_id: int, db: Session = Depends(get_db)):
+def toggle_model(model_id: int, current_user = Depends(get_current_user),
+                 db: Session = Depends(get_db)):
     """切换模型启用/停用"""
     model = db.query(ModelProvider).filter(ModelProvider.id == model_id).first()
     if not model:
@@ -209,7 +215,8 @@ def toggle_model(model_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{model_id}/set-default")
-def set_default_model(model_id: int, db: Session = Depends(get_db)):
+def set_default_model(model_id: int, current_user = Depends(get_current_user),
+                      db: Session = Depends(get_db)):
     """设为默认对话模型（LLM类型互斥）"""
     model = db.query(ModelProvider).filter(ModelProvider.id == model_id).first()
     if not model:
@@ -233,7 +240,8 @@ def set_default_model(model_id: int, db: Session = Depends(get_db)):
 
 
 @router.post("/{model_id}/test")
-def test_model(model_id: int, db: Session = Depends(get_db)):
+def test_model(model_id: int, current_user = Depends(get_current_user),
+               db: Session = Depends(get_db)):
     """测试模型连接"""
     model = db.query(ModelProvider).filter(ModelProvider.id == model_id).first()
     if not model:

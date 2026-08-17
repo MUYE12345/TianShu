@@ -54,6 +54,18 @@ class ToolService:
             return f"工具不存在: {name}"
         if not tool["enabled"]:
             return f"工具已禁用: {name}"
+        # 安全围栏: 直连执行也走校验与审计
+        try:
+            from agent.harness.harness import tool_harness
+            allowed, reason = tool_harness.check(name, kwargs, tool.get("category", "general"))
+            if not allowed:
+                tool_harness.record(name, kwargs, False, reason)
+                return f"[安全围栏拦截] {reason}"
+            result = tool["handler"](**kwargs)
+            tool_harness.record(name, kwargs, True, result=str(result))
+            return result
+        except Exception:
+            pass
         return tool["handler"](**kwargs)
 
 

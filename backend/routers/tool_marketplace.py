@@ -1,8 +1,9 @@
 """工具市场路由 — 基于真实注册表, 安装/卸载 = 启用/禁用真实工具 + 持久化"""
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Depends
 
 from agent.tools.registry import list_tools, _TOOL_REGISTRY, discover_tools
 from backend.services.marketplace_store import marketplace_store
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -71,7 +72,7 @@ def _set_tool(tool_id: str, enabled: bool):
 
 
 @router.post("/{tool_id}/install")
-def install_tool(tool_id: str):
+def install_tool(tool_id: str, current_user = Depends(get_current_user)):
     """安装(启用)工具"""
     if not _set_tool(tool_id, True):
         raise HTTPException(404, detail=f"未找到工具: {tool_id}")
@@ -79,7 +80,7 @@ def install_tool(tool_id: str):
 
 
 @router.post("/{tool_id}/uninstall")
-def uninstall_tool(tool_id: str):
+def uninstall_tool(tool_id: str, current_user = Depends(get_current_user)):
     """卸载(禁用)工具"""
     if not _set_tool(tool_id, False):
         raise HTTPException(404, detail=f"未找到工具: {tool_id}")

@@ -68,9 +68,9 @@ MAX_TOOL_ROUNDS = 5
 # ═══════════════════════════════════════
 
 def _sanitize_messages(messages: list) -> list:
-    """清洗历史消息: 只保留 role/content, 丢弃 tool_calls/agent_info 等多余字段。
-
-    DeepSeek/DashScope 拒绝带空 tool_calls([]) 的消息, 必须在下游过滤。
+    """清洗历史消息: 只保留 role/content; 非空的 tool_calls 转成文本拼入 content,
+    让模型能看到历史工具调用上下文。空 tool_calls([]) 必须丢弃
+    (DeepSeek/DashScope 拒绝带空 tool_calls 的消息)。
     """
     out = []
     for m in messages or []:
@@ -80,7 +80,15 @@ def _sanitize_messages(messages: list) -> list:
         content = m.get("content", "") or ""
         if not role or not content:
             continue
-        out.append({"role": role, "content": content})
+        item = {"role": role, "content": content}
+        # 非空 tool_calls: 序列化为可读文本追加, 保留工具调用上下文
+        tcs = m.get("tool_calls") or []
+        if isinstance(tcs, list) and tcs:
+            try:
+                item["content"] = content + "\n[工具调用记录] " + json.dumps(tcs, ensure_ascii=False)[:500]
+            except Exception:  # noqa: BLE001
+                pass
+        out.append(item)
     return out
 
 
@@ -354,10 +362,11 @@ def build_agent_graph() -> StateGraph:
 # ═══════════════════════════════════════
 
 async def _run_multi_agent(user_input: str, session_id: str,
-                           event_queue: asyncio.Queue):
+                           event_queue: asyncio.Queue, chat_history: list = None):
     """真实多智能体编排：Master 分解任务 → 动态创建 Worker 执行 → 合成答案。
 
     事件转发给前端：agent_turn（子智能体流转）/ plan / token / done。
+    chat_history: 最近对话历史, 作为上下文注入 Master 的任务分解, 避免子智能体盲跑。
     """
     from agent.multi_agent_service import MultiAgentScheduler
     from agent.multi_agent_memory import agent_memory
@@ -368,9 +377,15 @@ async def _run_multi_agent(user_input: str, session_id: str,
     tools_desc = tool_service.get_tool_descriptions() if hasattr(tool_service, 'get_tool_descriptions') else ""
     scheduler = MultiAgentScheduler(tools=tools, tool_descs=tools_desc)
 
+    # 把最近的对话历史拼成上下文(只取最近 6 条, 控制 token), 供任务分解参考
+    context = ""
+    hist = _sanitize_messages(chat_history or [])[-6:]
+    if hist:
+        context = "\n".join(f"{m['role']}: {m['content'][:200]}" for m in hist if m.get("content"))[:800]
+
     await event_queue.put({"type": "agent_turn", "agent": "master", "status": "启动多智能体编排..."})
 
-    async for ev in scheduler.master.run(user_input):
+    async for ev in scheduler.master.run(user_input, context=context):
         et = ev["type"]
         if et == "token":
             await event_queue.put(ev)
@@ -403,13 +418,19 @@ async def run_agent(
     expert_mode: bool = False,
     thinking_mode: bool = False,
     rag_context: str = "",
+    agent_system_prompt: str = "",
 ) -> AsyncGenerator[dict, None]:
-    """运行 LangGraph 智能体，产出 SSE 事件流"""
+    """运行 LangGraph 智能体，产出 SSE 事件流
+
+    agent_system_prompt: 可选。所选智能体的角色提示词(来自「智能体管理」),
+    传入后作为该轮回答的角色定义, 叠加在天枢工作流程之上。
+    """
     event_queue = asyncio.Queue()
 
     # 构建初始状态
     tools_desc = tool_service.get_tool_descriptions() if hasattr(tool_service, 'get_tool_descriptions') else ""
-    system_prompt = f"""你是遵循四层架构的天枢Agent。
+    role_line = agent_system_prompt.strip() if agent_system_prompt and agent_system_prompt.strip() else "你是遵循四层架构的天枢Agent。"
+    system_prompt = f"""{role_line}
 
 可用工具:
 {tools_desc}
@@ -465,7 +486,8 @@ async def run_agent(
         try:
             if expert_mode:
                 # 专家模式：真实多智能体编排（Master 分解 → Worker 执行 → 合成）
-                await _run_multi_agent(user_input, session_id, event_queue)
+                await _run_multi_agent(user_input, session_id, event_queue,
+                                       chat_history=initial_state["messages"])
             else:
                 config = {"configurable": {"thread_id": session_id}}
                 final_state = await graph.ainvoke(initial_state, config)

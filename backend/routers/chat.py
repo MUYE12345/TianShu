@@ -78,10 +78,24 @@ async def send_message(
 
             expert_mode = body.get("expert_mode", False)
             thinking_mode = body.get("thinking_mode", False)
+
+            # 所选智能体的角色提示词(来自「智能体管理」): agent_id → Agent.system_prompt
+            agent_system_prompt = ""
+            try:
+                agent_id = body.get("agent_id")
+                if agent_id:
+                    from backend.models.agent import Agent
+                    agent = db.query(Agent).filter(Agent.id == int(agent_id)).first()
+                    if agent and agent.enabled and agent.system_prompt:
+                        agent_system_prompt = agent.system_prompt
+            except Exception:
+                agent_system_prompt = ""
+
             async for event in agent_service.run(
                 content, str(session_id), messages,
                 expert_mode=expert_mode,
                 thinking_mode=thinking_mode,
+                agent_system_prompt=agent_system_prompt,
             ):
                 # 检测客户端是否断开连接
                 if await request.is_disconnected():

@@ -8,10 +8,10 @@
           <h1>智能体编排</h1>
         </div>
         <div class="mode-tabs">
-          <button :class="['mode-tab', { active: mode === 'subagent' }]" @click="mode = 'subagent'">
+          <button :class="['mode-tab', { active: mode === 'subagent' }]" @click="setMode('subagent')">
             主从协作
           </button>
-          <button :class="['mode-tab', { active: mode === 'team' }]" @click="mode = 'team'">
+          <button :class="['mode-tab', { active: mode === 'team' }]" @click="setMode('team')">
             平等协作
           </button>
         </div>
@@ -197,6 +197,21 @@ function onDragLeave() {
   }, 100)
 }
 
+// 切换模式时重置节点角色: 避免 team 模式残留的 primary/sub 身份在切回 subagent 时错乱
+function setMode(m) {
+  if (mode.value === m) return
+  mode.value = m
+  let mapped = nodes.value.map(n => ({
+    ...n,
+    role: m === 'subagent' ? (n.role === 'primary' ? 'primary' : 'sub') : 'member',
+  }))
+  // 切回主从协作但没有任何主控时, 自动把第一个节点升为主控
+  if (m === 'subagent' && mapped.length > 0 && !mapped.some(n => n.role === 'primary')) {
+    mapped = mapped.map((n, i) => i === 0 ? { ...n, role: 'primary' } : n)
+  }
+  nodes.value = mapped
+}
+
 const primaryNodes = computed(() => nodes.value.filter(n => n.role === 'primary'))
 const subNodes = computed(() => nodes.value.filter(n => n.role === 'sub'))
 
@@ -209,6 +224,21 @@ onMounted(async () => {
   try {
     const res = await request.get('/api/agents')
     agents.value = (res.items || []).filter(a => a.enabled)
+  } catch {}
+  // 编排记录优先从后端拉取(持久化), 失败回退 localStorage(离线兜底)
+  try {
+    const res = await request.get('/api/teams')
+    if (res?.items?.length) {
+      savedRuns.value = res.items.map(t => ({
+        id: 'team-' + t.id,
+        mode: t.mode,
+        prompt: t.prompt,
+        nodes: t.nodes || [],
+        name: t.name,
+        createdAt: Date.parse(t.updated_at || t.created_at) || Date.now(),
+      }))
+      return
+    }
   } catch {}
   try {
     const saved = localStorage.getItem('orch_saved')
@@ -290,17 +320,29 @@ async function handleExecute() {
   addLog('info', `📋 指令: ${globalPrompt.value}`)
   addLog('info', `🤖 参与: ${nodes.value.map(n => n.name).join(', ')}`)
 
-  // 保存编排记录
+  // 保存编排记录: 后端持久化(teams 表), localStorage 作为离线兜底
   const run = { id: `run-${Date.now()}`, mode: mode.value, prompt: globalPrompt.value, nodes: JSON.parse(JSON.stringify(nodes.value)), createdAt: Date.now() }
   savedRuns.value = [run, ...savedRuns.value].slice(0, 20)
   try { localStorage.setItem('orch_saved', JSON.stringify(savedRuns.value)) } catch {}
+  try {
+    // 静默持久化到后端: 失败不阻断编排执行
+    await request.post('/api/teams', {
+      name: (globalPrompt.value || '未命名团队').slice(0, 20),
+      mode: mode.value,
+      nodes: JSON.parse(JSON.stringify(nodes.value)),
+      prompt: globalPrompt.value,
+    })
+  } catch {}
 
   // 真实编排：调用后端 SSE
   let doneReceived = false
   try {
     const resp = await fetch('/api/agents/orchestrate', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
+      },
       body: JSON.stringify({ task: globalPrompt.value, mode: mode.value, nodes: nodes.value }),
     })
     if (!resp.ok) {

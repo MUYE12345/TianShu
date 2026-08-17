@@ -36,7 +36,7 @@
           <span class="col-title">来源</span>
           <span class="col-spacer"></span>
           <button class="src-select-toggle" :class="{ on: selectMode }" :title="selectMode ? '退出选择' : '选择文档聚焦问答'" @click="selectMode = !selectMode">☑</button>
-          <button class="btn-primary src-add" @click="showAdd = true">＋ 添加</button>
+          <button v-if="canEdit" class="btn-primary src-add" @click="showAdd = true">＋ 添加</button>
         </div>
         <div class="src-list">
           <div v-for="s in filteredSources" :key="s.id" class="src-item"
@@ -59,7 +59,7 @@
             <span class="src-actions" @click.stop>
               <span v-if="s.status === 'parsed'" class="src-act" title="预览" @click="openSourceTab(s)">👁</span>
               <span class="src-act" title="下载原件" @click="downloadSource(s)">⬇</span>
-              <span class="src-act danger" title="删除" @click="deleteSource(s.id)">✕</span>
+              <span v-if="canEdit" class="src-act danger" title="删除" @click="deleteSource(s.id)">✕</span>
             </span>
           </div>
           <div v-if="sources.length === 0" class="src-empty">
@@ -160,13 +160,13 @@
       <!-- ── 列4：产出 ── -->
       <aside class="wd-col wd-artifacts" :class="{ disabled: parsedSources.length === 0 }">
         <div class="col-head"><span class="col-title">产物</span></div>
-        <div class="art-grid">
+        <div v-if="canEdit" class="art-grid">
           <div class="art-card" @click="openGenerate('html')"><span class="art-icon ft-md">🌐</span><div class="art-name">网页</div><div class="art-desc">自动生成美观报告</div></div>
           <div class="art-card" @click="openGenerate('mindmap')"><span class="art-icon ft-xls">🧠</span><div class="art-name">思维导图</div><div class="art-desc">萃取结构化全景图</div></div>
           <div class="art-card" @click="openGenerate('ppt')"><span class="art-icon ft-ppt">📽</span><div class="art-name">PPT</div><div class="art-desc">可演示的幻灯片</div></div>
           <div class="art-card" @click="openGenerate('brief')"><span class="art-icon ft-xls" style="background:linear-gradient(135deg,#eccb6a,#d9a83b)">📋</span><div class="art-name">简报</div><div class="art-desc">摘要要点快读</div></div>
         </div>
-        <div class="art-chips">
+        <div v-if="canEdit" class="art-chips">
           <span class="chip" @click="openGenerate('timeline')">＋ 时间轴</span>
         </div>
         <p class="art-note">生成的网页 / 导图 / PPT，和对话里保存的笔记，都收纳在这里。</p>
@@ -180,7 +180,7 @@
             </div>
             <span class="src-actions" @click.stop>
               <a v-if="a.kind === 'ppt'" class="src-act" title="下载 pptx" :href="`/api/knowledge/notebooks/${kid}/artifacts/${a.id}/pptx`"></a>
-              <span class="src-act danger" title="删除" @click="deleteArtifact(a.id)">✕</span>
+              <span v-if="canEdit" class="src-act danger" title="删除" @click="deleteArtifact(a.id)">✕</span>
             </span>
           </div>
         </div>
@@ -189,7 +189,7 @@
 
     <!-- ===== 弹窗们 ===== -->
     <SourceAddDialog v-model="showAdd" :upload="uploadOne" :text="addText" />
-    <KbSettingsDialog v-model="showSettings" :kb="kb" @save="saveSettings" @request-delete="showDelete = true" />
+    <KbSettingsDialog v-model="showSettings" :kb="kb" @save="saveSettings" @request-delete="showDelete = true" @transfered="loadAll" />
     <DeleteKbDialog v-model="showDelete" :kb="kb" @confirm="doDelete" />
     <ChatHistoryDrawer v-model="showHistory" :kid="kid" @select="loadChatSession" />
 
@@ -272,6 +272,7 @@ import SourceAddDialog from '../../components/wiki/SourceAddDialog.vue'
 import KbSettingsDialog from '../../components/wiki/KbSettingsDialog.vue'
 import DeleteKbDialog from '../../components/wiki/DeleteKbDialog.vue'
 import { KB_COVERS, fileTypeInfo, formatSize } from '../../components/wiki/covers.js'
+import { safeRender } from '../../utils/sanitize.js'
 
 const route = useRoute()
 const router = useRouter()
@@ -317,16 +318,21 @@ const genInstruction = ref('')
 const genLabel = computed(() => ({ html: '网页', mindmap: '思维导图', ppt: 'PPT', brief: '简报', timeline: '时间轴' }[genKind.value] || ''))
 
 const md = new MarkdownIt({ html: true, linkify: true })
-function renderMd(text) { return md.render(text || '') }
+function renderMd(text) { return safeRender(md, text || '') }
 
 // wiki 笔记兜底
 const wikiPage = ref(null)
 const editMode = ref(false)
 const editContent = ref('')
-const wikiRendered = computed(() => md.render(wikiPage.value?.content || ''))
+const wikiRendered = computed(() => safeRender(md, wikiPage.value?.content || ''))
 
 const parsedSources = computed(() => sources.value.filter(s => s.status === 'parsed'))
 const filteredSources = computed(() => sources.value)
+
+// 权限: 编辑及以上可上传/删除来源/生成产物/设置
+const myRole = computed(() => kb.value?.my_role || 'viewer')
+const canEdit = computed(() => ['admin', 'editor'].includes(myRole.value))
+const isAdmin = computed(() => myRole.value === 'admin')
 
 // PRD 3.2.6 推荐问题三条规则
 const suggestedQuestions = computed(() => {
@@ -479,7 +485,10 @@ async function sendChat() {
       .map(m => ({ role: m.role, content: m.content }))
     const resp = await fetch(`/api/knowledge/notebooks/${kid.value}/chat`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
+      },
       body: JSON.stringify({
         messages: history,
         sourceIds: selectedSources.value.length ? selectedSources.value.map(s => s.id) : null,

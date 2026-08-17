@@ -85,51 +85,15 @@ async def lifespan(app: FastAPI):
 
 
 def _launch_desktop_apps():
-    """后台线程启动桌面应用（tkinter 轻量版）
+    """后台线程启动桌面应用（tkinter 轻量版, 桌面管理器提供重开/退出策略）
     """
     def _start():
         try:
-            import tkinter as tk
-
-            root = tk.Tk()
-            root.withdraw()
-            root.title("Tianshu Desktop")
-
-            windows = []
-
-            # 划屏翻译
-            try:
-                from backend.screen_translate.floating_window import FloatingWindow
-                fw = FloatingWindow(root)
-                fw.show()
-                windows.append(fw)
-                log.info("[桌面] 划屏翻译已启动")
-            except Exception as e:
-                log.warning("划屏翻译启动失败: %s", e)
-
-            # Q版桌宠(带提醒)
-            try:
-                from backend.companion.pet.pet_window import PetWindow
-                pw = PetWindow(root)
-                pw.show()
-                windows.append(pw)
-                log.info("[桌面] Q版桌宠已启动(含提醒)")
-            except Exception as e:
-                log.warning("桌宠启动失败: %s", e)
-
-            # Ctrl+C 退出
-            def _quit(*_):
-                for w in windows:
-                    try:
-                        w.close()
-                    except Exception:
-                        pass
-                root.destroy()
-
-            import signal
-            signal.signal(signal.SIGINT, _quit)
-
-            root.mainloop()
+            from backend.desktop_manager import DesktopManager
+            mgr = DesktopManager("all")
+            mgr.show_window("translate")
+            mgr.show_window("pet")
+            mgr.run()
         except ImportError as e:
             log.info("跳过桌面应用（tkinter 不可用: %s）", e)
         except Exception as e:
@@ -168,6 +132,7 @@ def create_app() -> FastAPI:
         plan, mcp, skills, tools, logs,
         agent, cron, tool_marketplace,
         feishu, models as models_router,
+        harness as harness_router,
     )
 
     app.include_router(auth.router, prefix="/api/auth", tags=["认证"])
@@ -196,9 +161,15 @@ def create_app() -> FastAPI:
     app.include_router(upload_router, prefix="/api/upload", tags=["上传"])
     from backend.routers.knowledge import router as knowledge_router
     app.include_router(knowledge_router, prefix="/api/knowledge", tags=["知识库"])
+    from backend.routers.teams import router as teams_router
+    app.include_router(teams_router, prefix="/api/teams", tags=["编排团队"])
+    from backend.routers.harness import router as harness_router
+    app.include_router(harness_router, prefix="/api/harness", tags=["安全围栏"])
 
     # ── 静态文件 ──
-    upload_dir = settings.UPLOAD_DIR
+    # 只暴露上传目录 (data/uploads), 绝不挂载整个 data/ (含 housekeeper.db/API Key, 会直接泄露)
+    from backend.config import DATA_DIR
+    upload_dir = settings.UPLOAD_DIR if settings.UPLOAD_DIR and str(settings.UPLOAD_DIR).lower() != str(DATA_DIR).lower() else str(DATA_DIR / "uploads")
     os.makedirs(upload_dir, exist_ok=True)
     app.mount("/static", StaticFiles(directory=upload_dir), name="static")
 

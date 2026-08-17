@@ -11,8 +11,7 @@ import re
 import requests
 from backend.config import settings
 
-# 华风爱科 API Key 从 settings.WEATHER_API_KEY 读取(不在代码里写死, 避免密钥入库泄露)
-DEFAULT_API_KEY = ""
+# 华风爱科 API Key 只从 settings.WEATHER_API_KEY(.env) 读取, 代码中不保留任何默认 Key(隐私不入库/不上传)
 BASE_URL = "https://openapi.weathercn.com"
 
 # 常见中国城市 → Location Key 映射（城市级别）
@@ -205,7 +204,7 @@ def weather_handler(city: str) -> str:
     支持 "北京" / "北京.大兴区" / "北京大兴" 等格式。
     使用华风爱科天气 API，区县级可获得更精确的预报。
     """
-    api_key = settings.WEATHER_API_KEY or DEFAULT_API_KEY
+    api_key = settings.WEATHER_API_KEY
     if not api_key:
         return json.dumps({"error": "未配置 WEATHER_API_KEY, 天气功能不可用。请在 .env 设置后重试。"}, ensure_ascii=False)
 

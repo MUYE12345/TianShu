@@ -115,6 +115,7 @@ const menuGroups = [
     label: '系统',
     items: [
       { path: '/settings/model', icon: '⚙', label: '设置' },
+      { path: '/settings/harness', icon: '🛡', label: '安全围栏' },
     ],
   },
 ]

@@ -46,6 +46,12 @@ class PaperService:
         os.makedirs(upload_dir, exist_ok=True)
         dest = os.path.join(upload_dir, os.path.basename(file_path))
         shutil.copy2(file_path, dest)
+        # 清理临时上传文件(paper.py 用 NamedTemporaryFile(delete=False) 写入)
+        try:
+            if os.path.abspath(file_path) != os.path.abspath(dest) and os.path.exists(file_path):
+                os.remove(file_path)
+        except Exception:
+            pass
 
         paper = Paper(title=title or os.path.basename(file_path), pdf_path=dest, status="pending")
         db.add(paper)
@@ -55,7 +61,24 @@ class PaperService:
         return {"id": paper.id, "title": paper.title, "status": "pending", "message": "上传成功, 点击解析按钮开始OCR"}
 
     def start_ocr(self, db: Session, paper_id: int) -> dict:
-        """手动触发OCR解析(异步)"""
+        """手动触发OCR解析(异步)
+
+        状态机: pending → ocr_processing(落库, 列表页显示"解析中") → ocr_done/error。
+        已在处理中或已解析完成的论文不重复触发, 避免并发线程重复插入页面。
+        """
+        paper = db.query(Paper).filter(Paper.id == paper_id).first()
+        if not paper:
+            return {"error": "论文不存在"}
+        # 重复触发防护
+        if paper.status == "ocr_processing":
+            return {"id": paper_id, "status": "ocr_processing", "message": "OCR正在处理中, 请稍候"}
+        if paper.status in ("ocr_done", "parsed") and paper.pages and paper.pages > 0:
+            return {"id": paper_id, "status": paper.status, "message": "该论文已完成解析"}
+
+        # 先落库"处理中", 让列表页立即显示解析中状态
+        paper.status = "ocr_processing"
+        db.commit()
+
         def _bg_ocr():
             bg_db = SessionLocal()
             try:
@@ -66,26 +89,38 @@ class PaperService:
         return {"id": paper_id, "status": "ocr_processing", "message": "OCR已启动, 请稍后刷新查看结果"}
 
     def _do_ocr(self, db: Session, paper_id: int):
-        """执行OCR处理"""
+        """执行OCR处理。各阶段失败都会把状态置为 error, 不再静默停在 ocr_done。"""
         paper = db.query(Paper).filter(Paper.id == paper_id).first()
         if not paper:
             return
-
-        paper.status = "ocr_done"
-        pages = paper_ocr.process_pdf(paper.pdf_path, paper_id=paper_id)
-        for p in pages:
-            db.add(PaperPage(
-                paper_id=paper_id, page_num=p["page_num"],
-                image_path=p.get("image_path", ""), ocr_text=p.get("ocr_text", ""),
-            ))
-        paper.pages = len(pages)
-        db.commit()
-        # 渲染页面图 + 提取段落框（魔搭式双栏）
-        self._visualize_pages(db, paper_id)
-        # 提取论文图表（图片 + 标题启发式）
-        self._extract_figures(db, paper_id)
-        # OCR 完成后逐页翻译（后台线程内调用，主模型）
-        self._translate_pages(db, paper_id)
+        try:
+            pages = paper_ocr.process_pdf(paper.pdf_path, paper_id=paper_id)
+            for p in pages:
+                db.add(PaperPage(
+                    paper_id=paper_id, page_num=p["page_num"],
+                    image_path=p.get("image_path", ""), ocr_text=p.get("ocr_text", ""),
+                ))
+            paper.pages = len(pages)
+            db.commit()
+            # 渲染页面图 + 提取段落框（魔搭式双栏）
+            self._visualize_pages(db, paper_id)
+            # 提取论文图表（图片 + 标题启发式）
+            self._extract_figures(db, paper_id)
+            # OCR 完成后逐页翻译（后台线程内调用，主模型）
+            self._translate_pages(db, paper_id)
+            # 全部完成才置 ocr_done
+            paper = db.query(Paper).filter(Paper.id == paper_id).first()
+            if paper and paper.status != "error":
+                paper.status = "ocr_done"
+                db.commit()
+        except Exception as e:  # noqa: BLE001
+            # 状态机兜底: 失败必须可见, 不能停在 ocr_processing/ocr_done
+            paper = db.query(Paper).filter(Paper.id == paper_id).first()
+            if paper:
+                paper.status = "error"
+                db.commit()
+            from backend.core.logger import log
+            log.warning("[Paper] OCR 处理失败 paper=%s: %s", paper_id, e)
 
     def _visualize_pages(self, db: Session, paper_id: int):
         """为已有页面渲染 PNG + 提取段落框（幂等，不重复翻译）。"""
@@ -114,12 +149,20 @@ class PaperService:
 
     @staticmethod
     def _translate_text(text: str) -> str:
-        """把英文论文文本翻译成中文(单次LLM调用)。失败返回空串。"""
+        """把英文论文文本翻译成中文(单次LLM调用)。失败返回空串。
+
+        提示词要求"逐段翻译、空行分隔、段落数与原文一致", 以便前端按段落框
+        索引配对译文(整页一次性翻译会因段落数不一致导致双语错位)。
+        """
         from backend.core.model_config import model_manager
         llm = model_manager.get_main_llm()
         prompt = (
-            "请把下面的英文论文内容翻译成通顺的中文。保留专业术语，"
-            "首次出现时可在括号里标注英文原文，不要输出解释性文字。\n\n"
+            "请把下面的英文论文内容翻译成通顺的中文。要求:\n"
+            "- 保留专业术语，首次出现时可在括号里标注英文原文\n"
+            "- **逐段翻译**: 原文的每个段落对应译文的一个段落\n"
+            "- 段落之间用空行分隔，**译文段落数量必须与原文完全一致**\n"
+            "- 不要合并段落，也不要拆分段落\n"
+            "- 不要输出解释性文字\n\n"
             f"{text[:1200]}"
         )
         try:
@@ -380,6 +423,11 @@ class PaperService:
                 d = os.path.join(settings.UPLOAD_DIR, "papers", sub, str(paper_id))
                 if os.path.isdir(d):
                     shutil.rmtree(d, ignore_errors=True)
+            # 清理图片尺寸缓存中该论文相关的条目(文件已删, 缓存失效)
+            prefix = os.path.join(settings.UPLOAD_DIR, "papers", "_pages", str(paper_id)) + os.sep
+            stale = [k for k in _IMG_SIZE_CACHE if k.startswith(prefix)]
+            for k in stale:
+                _IMG_SIZE_CACHE.pop(k, None)
             db.delete(paper)
             db.commit()
             return True

@@ -3,12 +3,13 @@
 """
 import asyncio
 import json
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
 from pydantic import BaseModel
 from backend.database import get_db
 from backend.models.agent import Agent
+from backend.core.security import get_current_user
 
 router = APIRouter()
 
@@ -20,7 +21,9 @@ class OrchestrateBody(BaseModel):
 
 
 @router.post("/orchestrate")
-async def orchestrate(body: OrchestrateBody, db: Session = Depends(get_db)):
+async def orchestrate(body: OrchestrateBody, request: Request,
+                      current_user = Depends(get_current_user),
+                      db: Session = Depends(get_db)):
     """运行用户定义的团队编排（真实 LLM 执行），SSE 流式返回。
 
     事件: agent_turn / plan / token / done / error
@@ -65,12 +68,25 @@ async def orchestrate(body: OrchestrateBody, db: Session = Depends(get_db)):
                 await queue.put(None)
 
         runner = asyncio.create_task(run())
-        while True:
-            ev = await queue.get()
-            if ev is None:
-                break
-            yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
-        await runner
+        try:
+            while True:
+                ev = await queue.get()
+                if ev is None:
+                    break
+                # 客户端断开时取消后台编排, 避免模型调用空转
+                if await request.is_disconnected():
+                    runner.cancel()
+                    from backend.core.logger import log
+                    log.info("编排客户端断开, 取消后台执行")
+                    break
+                yield f"data: {json.dumps(ev, ensure_ascii=False)}\n\n"
+        finally:
+            if not runner.done():
+                runner.cancel()
+        try:
+            await runner
+        except asyncio.CancelledError:
+            pass
 
     return StreamingResponse(event_stream(), media_type="text/event-stream",
                              headers={"Cache-Control": "no-cache", "Connection": "keep-alive"})

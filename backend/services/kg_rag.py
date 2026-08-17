@@ -76,6 +76,18 @@ class KnowledgeGraph:
             except Exception:  # noqa: BLE001
                 g = {"nodes": [], "edges": []}
         self._build_adj(g)
+        # 磁盘不存 embedding(见 rebuild): 加载后惰性补嵌, 供语义匹配使用。
+        # 兼容旧版本文件(可能残留 embedding 字段), 统一剥离并重算。
+        nodes = g.get("nodes", [])
+        if nodes:
+            need_embed = any(n.get("embedding") is None for n in nodes)
+            for n in nodes:
+                n.pop("embedding", None)
+            if need_embed:
+                try:
+                    self._embed_nodes(nodes)
+                except Exception:  # noqa: BLE001
+                    pass
         self._graphs[kid] = g
         return g
 
@@ -166,8 +178,11 @@ class KnowledgeGraph:
         self._build_adj(g)
         self._graphs[kid] = g
         try:
+            # 磁盘只存元数据: 1024 维嵌入不落盘(节点多时文件体积会暴涨),
+            # 加载后按需在内存中重新计算(见 _load 的 lazy 补嵌)。
+            disk_nodes = [{k: v for k, v in n.items() if k != "embedding"} for n in nodes]
             self.graph_path(kid).write_text(
-                json.dumps({"nodes": nodes, "edges": edges}, ensure_ascii=False),
+                json.dumps({"nodes": disk_nodes, "edges": edges}, ensure_ascii=False),
                 encoding="utf-8")
         except Exception as e:  # noqa: BLE001
             print(f"[KGRAG] 写图失败: {e}")
