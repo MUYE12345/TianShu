@@ -71,6 +71,7 @@
 
       <!-- 中间：画布 -->
       <div class="orch-canvas"
+           @dragenter.prevent="onDragOver"
            @dragover.prevent="onDragOver"
            @dragleave="onDragLeave"
            @drop.prevent="onDrop"

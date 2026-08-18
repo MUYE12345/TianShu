@@ -200,18 +200,17 @@ html.dark .logo-text {
 
 .sidebar-foot { padding: 4px 4px 0; }
 
-/* 主区：磨砂大圆角卡 */
+/* 主区：大圆角卡(半透明底; 不用 backdrop-filter, 它会破坏 Chromium 的 HTML5 拖放命中) */
 .app-main {
   flex: 1; display: flex; flex-direction: column; min-width: 0;
   margin-left: 8px;
-  background: rgba(255, 255, 255, 0.82);
-  -webkit-backdrop-filter: blur(18px); backdrop-filter: blur(18px);
+  background: rgba(255, 255, 255, 0.9);
   border-radius: 18px;
   box-shadow: var(--shadow-card);
   border: 1px solid var(--border-light);
   overflow: hidden;
 }
-html.dark .app-main { background: rgba(18, 22, 42, 0.86); backdrop-filter: blur(18px); }
+html.dark .app-main { background: rgba(18, 22, 42, 0.94); }
 
 .app-topbar {
   height: 52px; display: flex; align-items: center;
