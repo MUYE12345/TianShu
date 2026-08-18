@@ -138,9 +138,12 @@
           <el-input v-model="globalPrompt" type="textarea" :rows="3" placeholder="输入任务需求..." />
         </div>
         <div class="panel-section">
-          <el-button type="primary" :disabled="nodes.length === 0" :loading="executing" @click="handleExecute" style="width:100%">
-            {{ executing ? '编排执行中...' : '▶ 开始执行' }}
-          </el-button>
+          <div style="display:flex;gap:8px">
+            <el-button type="primary" :disabled="nodes.length === 0" :loading="executing" @click="handleExecute" style="flex:1">
+              {{ executing ? '编排执行中...' : '▶ 开始执行' }}
+            </el-button>
+            <el-button v-if="executing" type="danger" plain @click="stopExecute">■ 停止</el-button>
+          </div>
           <p class="simulate-hint">真实编排 · 主控规划 → 子智能体并行执行 → 汇总</p>
         </div>
         <div class="panel-section exec-log-section">
@@ -178,6 +181,7 @@ const globalPrompt = ref('')
 const isDragOver = ref(false)
 const dragLeaveTimer = ref(null)
 const executing = ref(false)
+const abortCtrl = ref(null)
 const execLogs = ref([])
 const finalResult = ref('')
 const savedRuns = ref([])
@@ -335,8 +339,10 @@ async function handleExecute() {
     })
   } catch {}
 
-  // 真实编排：调用后端 SSE
+  // 真实编排：调用后端 SSE(支持手动停止)
   let doneReceived = false
+  const controller = new AbortController()
+  abortCtrl.value = controller
   try {
     const resp = await fetch('/api/agents/orchestrate', {
       method: 'POST',
@@ -345,6 +351,7 @@ async function handleExecute() {
         ...(localStorage.getItem('token') ? { Authorization: `Bearer ${localStorage.getItem('token')}` } : {}),
       },
       body: JSON.stringify({ task: globalPrompt.value, mode: mode.value, nodes: nodes.value }),
+      signal: controller.signal,
     })
     if (!resp.ok) {
       const err = await resp.json().catch(() => ({}))
@@ -369,12 +376,25 @@ async function handleExecute() {
       }
     }
   } catch (e) {
-    addLog('error', '编排失败: ' + e.message)
+    if (e?.name === 'AbortError') {
+      addLog('warning', '⏹ 已手动停止编排')
+      try {
+        nodes.value.forEach(n => { if (n.status === 'running') n.status = 'idle' })
+      } catch {}
+    } else {
+      addLog('error', '编排失败: ' + e.message)
+    }
   } finally {
+    abortCtrl.value = null
     if (doneReceived) addLog('success', '🎉 编排执行完成')
-    else if (!execLogs.value.some(l => l.type === 'error')) addLog('warning', '⚠️ 编排已结束（未收到完成标记）')
+    else if (!execLogs.value.some(l => l.type === 'error') && !execLogs.value.some(l => l.msg.includes('已手动停止')))
+      addLog('warning', '⚠️ 编排已结束（未收到完成标记）')
     executing.value = false
   }
+}
+
+function stopExecute() {
+  try { abortCtrl.value?.abort() } catch {}
 }
 
 function handleEvent(ev) {
